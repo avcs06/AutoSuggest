@@ -4,6 +4,7 @@
   "description": "Suggestion Dropdown for text fields",
   "main": "index.js",
   "scripts": {
+    "start": "nodemon process.js --watch src",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -12,5 +13,14 @@
     "dropdown"
   ],
   "author": "AvcS",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-plugin-transform-helper": "0.0.6",
+    "babel-preset-env": "^1.6.1",
+    "js-beautify": "^1.7.4",
+    "nodemon": "^1.12.1",
+    "uglify-js": "^3.1.9"
+  },
+  "dependencies": {}
 }

@@ -10,10 +10,7 @@
         <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
 
         <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha256-k2WSCIexGzOj3Euiig+TlR8gA0EmPjuc79OEeY5L45g=" crossorigin="anonymous"></script>
-        <script src="list.js"></script>
-        <script src="dropdown.js"></script>
-        <script src="textcomplete.js"></script>
-        <script src="index.js"></script>
+        <script src="../dist/autosuggest.js"></script>
 
         <style type="text/css">
             #input, #textarea {
@@ -33,16 +30,28 @@
 
         <script type="text/javascript">
             $('#input').autoSuggest($('#textarea').autoSuggest({
-                suggestions: [[
-                    'hello',
-                    'world',
-                    'idiot',
-                    'stupid',
-                    'rascal',
-                    'hello1',
-                    'hello2',
-                    'hello3'
-                ]]
+                suggestions: [
+                    {
+                        trigger: '<',
+                        suggestions: [
+                            {
+                                on: 'script',
+                                show: 'script',
+                                replaceWith: '<script src="text/javascript"><\/script>',
+                                cursorPosition: [-26, -11]
+                            }
+                        ]
+                    }, [
+                        'hello',
+                        'world',
+                        'idiot',
+                        'stupid',
+                        'rascal',
+                        'hello1',
+                        'hello2',
+                        'hello3',
+                    ]
+                ]
             }));
         </script>
     </body>
