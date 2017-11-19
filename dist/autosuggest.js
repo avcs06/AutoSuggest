@@ -107,9 +107,16 @@
                 }
 
                 return position;
+            },
+
+            htmlEncode: function htmlEncode(value) {
+                return $('<div/>').text(value).html();
             }
         };
-        return Utilities;
+
+        var __Utilities_output = {};
+        __Utilities_output = Utilities;
+        return __Utilities_output;
     }();
 
     var SuggestionList = function() {
@@ -193,10 +200,15 @@
                 var escapedTrigger = '\\' + trigger.split('').join('\\');
                 this.regex = new RegExp('(?:^|[^' + escapedTrigger + ']+)' + escapedTrigger + '(\\S*)$');
             } else {
-                this.regex = new RegExp('(?:^|\\s+)(\\S+)$');
+                this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
             }
+
+            this.trigger = trigger;
         }
-        return SuggestionList;
+
+        var __SuggestionList_output = {};
+        __SuggestionList_output = SuggestionList;
+        return __SuggestionList_output;
     }();
 
     var SuggestionDropdown = function() {
@@ -206,7 +218,6 @@
 
                 this.width = 0;
                 this.hidden = true;
-                this.setValue = options.setValue;
 
                 this.dropdownContent = $('<ul class="dropdown-menu dropdown-menu-left"></ul>');
                 this.dropdown = $('<div class="dropdown open as-dropdown" style="display:none; position: absolute;"></div>');
@@ -245,16 +256,15 @@
                 }
             }, {
                 key: 'fill',
-                value: function fill(suggestions, suggestionList) {
+                value: function fill(suggestions, onSet) {
                     var self = this;
-                    this.suggestionList = suggestionList;
                     this.dropdownContent.empty();
 
                     suggestions.forEach(function(suggestion) {
                         var dropdownLink = $('<li><a>' + suggestion.show + '</a></li>');
                         dropdownLink.data('as-linkcontent', suggestion);
                         dropdownLink.mousedown(function() {
-                            self.setValue(suggestion, suggestionList);
+                            onSet(suggestion);
                             self.hide();
                             return false;
                         });
@@ -310,21 +320,32 @@
             return SuggestionDropdown;
         }();
 
-        return SuggestionDropdown;
+        var __SuggestionDropdown_output = {};
+        __SuggestionDropdown_output = SuggestionDropdown;
+        return __SuggestionDropdown_output;
     }();
 
     var AutoSuggest = function() {
+        function extendFromGlobalOptions(currentOptions, globalOptions, optionList) {
+            optionList.forEach(function(option) {
+                if (typeof globalOptions[option] !== 'undefined' && typeof currentOptions[option] === 'undefined') {
+                    currentOptions[option] = globalOptions[option];
+                }
+            });
+        }
+
         function getCaretPosition(element) {
             if (element.data('as-isinput')) {
                 var originalValue = element.val();
                 var cursorPosition = Utilities.getCursorPosition(element[0]);
-                var value = originalValue.slice(0, cursorPosition).replace(/ /g, '&nbsp;');
+                var value = originalValue.slice(0, cursorPosition);
+
                 //Create a clone of our input field using div and copy value into div
                 //Wrap last character in a span to get its position
                 $('.as-positionclone').remove();
 
                 var clone = $('<div class="as-positionclone"/>');
-                var cloneContent = $('<div style="display:inline-block;">' + value.slice(0, -1) + '<span id="as-positioner">' + value.slice(-1) + '</span>' + originalValue.slice(cursorPosition) + '</div>');
+                var cloneContent = $('<div style="display:inline-block;">' + Utilities.htmlEncode(value.slice(0, -1)) + '<span id="as-positioner">' + Utilities.htmlEncode(value.slice(-1)) + '</span>' + Utilities.htmlEncode(originalValue.slice(cursorPosition)) + '</div>');
 
                 clone.append(cloneContent);
                 Utilities.cloneStyle(element[0], clone[0]);
@@ -347,7 +368,11 @@
                         overflowX: 'auto',
                         whiteSpace: 'nowrap'
                     });
-                    clone.scrollLeft(cursorPosition === originalValue.length ? cloneContent.width() : Utilities.getScrollLeftForInput(element[0]));
+                    if (cursorPosition === originalValue.length) {
+                        clone.scrollLeft(cloneContent.width());
+                    } else {
+                        clone.scrollLeft(Math.min(Utilities.getScrollLeftForInput(element[0]), cloneContent.width()));
+                    }
                 } else {
                     cloneContent.css('max-width', '100%');
                     clone.scrollLeft(element.scrollLeft());
@@ -364,14 +389,6 @@
             }
         }
 
-        function extendFromGlobalOptions(currentOptions, globalOptions, optionList) {
-            optionList.forEach(function(option) {
-                if (typeof globalOptions[option] !== 'undefined' && typeof currentOptions[option] === 'undefined') {
-                    currentOptions[option] = globalOptions[option];
-                }
-            });
-        }
-
         var defaultOptions = {
             suggestions: []
         };
@@ -385,9 +402,9 @@
                 this.isActive = false;
                 this.activeElement = null;
                 this.activeElementCursorPosition = 0;
-                this.dropdown = new SuggestionDropdown({
-                    setValue: this.setValue.bind(this)
-                });
+                this.activeSuggestionList = null;
+
+                this.dropdown = new SuggestionDropdown();
 
                 // validate suggestions
                 this.suggestionLists = [].concat(options.suggestions);
@@ -397,6 +414,7 @@
                     if (!currentSuggestionList) {
                         throw new Error('AutoSuggest: invalid suggestion list passed');
                     }
+
                     if (!(currentSuggestionList instanceof SuggestionList)) {
                         if (!currentSuggestionList.suggestions) {
                             currentSuggestionList = {
@@ -405,7 +423,6 @@
                         }
 
                         extendFromGlobalOptions(currentSuggestionList, options, ['caseSensitive', 'trigger']);
-                        console.log(currentSuggestionList);
                         this.suggestionLists[i] = new SuggestionList(currentSuggestionList);
                     }
                 }
@@ -418,6 +435,7 @@
                 value: function addInputs(inputs) {
                     inputs = $(inputs);
                     var self = this;
+
                     // validate element
                     inputs.each(function() {
                         var that = $(this);
@@ -433,7 +451,8 @@
                     // init events
                     inputs.on('input', function() {
                         var that = $(this);
-                        var value = $('<div>' + that.val() + '</div>').text();
+                        var value = that.val();
+
                         if (that.data('as-isinput')) {
                             var cursorPosition = Utilities.getCursorPosition(this);
                             self.activeElementCursorPosition = cursorPosition;
@@ -444,11 +463,14 @@
 
                         var _loop = function _loop(currentSuggestionList) {
                             if (currentSuggestionList.regex.test(value)) {
+                                self.activeSuggestionList = currentSuggestionList;
                                 var match = value.match(currentSuggestionList.regex)[1];
                                 currentSuggestionList.getSuggestions(match, function(results) {
                                     if (results.length) {
                                         self.isActive = true;
-                                        self.dropdown.fill(results, currentSuggestionList);
+                                        self.dropdown.fill(results, function(suggestion) {
+                                            return self.setValue(suggestion, currentSuggestionList);
+                                        });
                                         self.dropdown.show(getCaretPosition(that));
                                     } else {
                                         self.dropdown.hide();
@@ -495,7 +517,7 @@
                             var newValue = void 0;
                             var e = originalEvent || event;
                             if (e.keyCode === 13 || e.keyCode === 9) {
-                                self.setValue(self.dropdown.getValue(), self.dropdown.suggestionList);
+                                self.setValue(self.dropdown.getValue(), self.activeSuggestionList);
                                 self.dropdown.hide();
                             } else if (e.keyCode == 40) {
                                 newValue = self.dropdown.next();
@@ -511,8 +533,8 @@
 
                     inputs.blur(function() {
                         self.activeElement = null;
-                        self.dropdown.hide();
                         self.isActive = false;
+                        self.dropdown.hide();
                     }).focus(function() {
                         self.activeElement = $(this);
                     });
@@ -529,9 +551,9 @@
                             var originalValue = element.val();
                             var cursorPosition = self.activeElementCursorPosition;
                             var value = originalValue.slice(0, cursorPosition);
-                            var currentValue = value.split(suggestionList.trigger || /\s/).pop();
+                            var currentValue = value.split(suggestionList.trigger || /\W/).pop();
 
-                            value = value.slice(0, 0 - currentValue.length);
+                            value = value.slice(0, 0 - currentValue.length - (suggestionList.trigger || '').length);
                             var cursorStartPosition = value.length;
 
                             element.val(value + insertText + originalValue.slice(cursorPosition));
@@ -560,7 +582,10 @@
                 return new AutoSuggest(options, this);
             }
         };
-        return AutoSuggest;
+
+        var __AutoSuggest_output = {};
+        __AutoSuggest_output = AutoSuggest;
+        return __AutoSuggest_output;
     }();
 
     return AutoSuggest;

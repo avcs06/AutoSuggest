@@ -60,5 +60,9 @@ const Utilities = {
         }
     
         return position;
-    }
+    },
+
+    htmlEncode: value => $('<div/>').text(value).html()
 };
+
+export default Utilities;

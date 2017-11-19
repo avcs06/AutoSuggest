@@ -4,21 +4,35 @@ var babel = require('babel-core');
 var UglifyJS = require("uglify-js");
 var beautify = require('js-beautify').js_beautify;
 
-var importRegex = /import\s*?([^\s]*?)\s*?from\s*?['"]([^;]*?)['"]\s*?;/;
+var importRegex = /import\s+?([^\s]+?)\s+?from\s+?['"]([^;]+?)['"]\s*?;/;
+var exportRegex = /export\s+?(?:(default)\s+?|const\s+?([^=]+?)\s*?=\s*?)([^;]+?);/;
 function processFile (fileName, variableName) {
     var fileContents = [];
     var importedFiles = [];
 
     function processThisFile (fileName, variableName) {
         var fileContent = fs.readFileSync(path.join(__dirname, 'src/' + fileName + '.js'), 'utf8');
-        var importMatch;
+        var importMatch, exportMatch;
 
         while (importMatch = fileContent.match(importRegex)) {
             if(importedFiles.indexOf(importMatch[2]) === -1) processThisFile(importMatch[2], importMatch[1]);
             fileContent = fileContent.replace(importMatch[0], '');
         }
 
-        fileContents.push('const ' + (variableName || fileName) + ' = (function () {' + fileContent.trim() + ' return ' + fileName + ';})();');
+        var outputVariableName = '__' + fileName + '_output';
+        var outputContent = '\n\nvar ' + outputVariableName + ' = {};';
+        while (exportMatch = fileContent.match(exportRegex)) {
+            if (exportMatch[1]) {
+                outputContent += outputVariableName + ' = ' + exportMatch[3] + ';';
+            } else {
+                outputContent += outputVariableName + '.' + exportMatch[2] + ' = ' + exportMatch[3] + ';';
+            }
+            fileContent = fileContent.replace(exportMatch[0], '');
+        }
+
+        fileContent = fileContent.trim() + outputContent + ' return ' + outputVariableName + ';';
+
+        fileContents.push('const ' + (variableName || fileName) + ' = (function () {' + fileContent + '})();');
         importedFiles.push(fileName);
     }
     processThisFile(fileName, variableName);

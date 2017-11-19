@@ -2,7 +2,6 @@ class SuggestionDropdown {
     constructor(options) {
         this.width = 0;
         this.hidden = true;
-        this.setValue = options.setValue;
 
         this.dropdownContent = $('<ul class="dropdown-menu dropdown-menu-left"></ul>');
         this.dropdown = $('<div class="dropdown open as-dropdown" style="display:none; position: absolute;"></div>');
@@ -36,16 +35,15 @@ class SuggestionDropdown {
         this.width = this.dropdownContent.width();
     }
 
-    fill(suggestions, suggestionList) {
+    fill(suggestions, onSet) {
         const self = this;
-        this.suggestionList = suggestionList;
         this.dropdownContent.empty();
 
         suggestions.forEach(suggestion => {
             const dropdownLink = $(`<li><a>${suggestion.show}</a></li>`);
             dropdownLink.data('as-linkcontent', suggestion);
             dropdownLink.mousedown(() => {
-                self.setValue(suggestion, suggestionList);
+                onSet(suggestion);
                 self.hide();
                 return false;
             });
@@ -94,3 +92,5 @@ class SuggestionDropdown {
         return this.getValue();
     }
 }
+
+export default SuggestionDropdown;
