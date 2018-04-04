@@ -171,7 +171,7 @@
             if (typeof options.suggestions === 'function') {
                 this.getSuggestions = function(keyword, callback) {
                     options.suggestions(keyword, function(suggestions) {
-                        return validateSuggestions(suggestions, true);
+                        return callback(validateSuggestions(suggestions, true));
                     });
                 };
             } else if (options.suggestions.constructor === Array || typeof options.suggestions === 'string') {

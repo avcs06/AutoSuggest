@@ -50,7 +50,7 @@ function SuggestionList(options) {
 
     if (typeof options.suggestions === 'function') {
         this.getSuggestions = (keyword, callback) => {
-            options.suggestions(keyword, suggestions => validateSuggestions(suggestions, true));
+            options.suggestions(keyword, suggestions => callback(validateSuggestions(suggestions, true)));
         };
     } else if (options.suggestions.constructor === Array || typeof options.suggestions === 'string') {
         options.suggestions = validateSuggestions(options.suggestions);
