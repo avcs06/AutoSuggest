@@ -2,25 +2,45 @@
   "name": "suggest",
   "version": "0.0.0",
   "description": "Suggestion Dropdown for text fields",
-  "main": "index.js",
+  "main": "lib/AutoSuggest.js",
+  "repository": "",
   "scripts": {
-    "start": "nodemon process.js --watch src",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "clean": "rimraf lib dist es",
+    "build": "npm run clean && npm run build:commonjs && npm run build:umd && npm run build:umd:docs && npm run build:umd:min && npm run build:es",
+    "build:watch": "echo 'build && watch the COMMONJS version of the package - for other version, run specific tasks' && npm run build:commonjs:watch",
+    "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib",
+    "build:commonjs:watch": "npm run build:commonjs -- --watch",
+    "build:es": "cross-env BABEL_ENV=es babel src --out-dir es",
+    "build:es:watch": "npm run build:es -- --watch",
+    "build:umd": "cross-env BABEL_ENV=es NODE_ENV=development node_modules/.bin/rollup src/AutoSuggest.js --config --sourcemap --output dist/AutoSuggest.js",
+    "build:umd:docs": "cross-env BABEL_ENV=es NODE_ENV=development node_modules/.bin/rollup src/AutoSuggest.js --config --sourcemap --output docs/AutoSuggest.js",
+    "build:umd:watch": "npm run build:umd -- --watch",
+    "build:umd:min": "cross-env BABEL_ENV=es NODE_ENV=production rollup src/AutoSuggest.js --config --output dist/AutoSuggest.min.js"
   },
   "keywords": [
+    "jquery",
     "autocomplete",
     "sugggestion",
     "dropdown"
   ],
   "author": "AvcS",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
-    "babel-core": "^6.26.0",
-    "babel-plugin-transform-helper": "0.0.6",
-    "babel-preset-env": "^1.6.1",
-    "js-beautify": "^1.7.4",
-    "nodemon": "^1.12.1",
-    "uglify-js": "^3.1.9"
+    "babel-cli": "^6.24.1",
+    "babel-core": "^6.25.0",
+    "babel-eslint": "^7.2.3",
+    "babel-preset-env": "^1.5.2",
+    "cross-env": "^5.0.1",
+    "eslint": "^4.1.1",
+    "rimraf": "^2.6.1",
+    "rollup": "^0.43.0",
+    "rollup-plugin-babel": "^2.7.1",
+    "rollup-plugin-commonjs": "^8.0.2",
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-uglify": "^2.0.1",
+    "rollup-watch": "^4.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "jquery": "^3.3.1"
+  }
 }

@@ -1,5 +1,7 @@
-import Utilities from 'Utilities';
+import jQuery from 'jquery';
+import Utilities from './Utilities';
 
+const $ = jQuery;
 const defaultOptions = {
     trigger: null,
     caseSensitive: true

@@ -1,6 +1,9 @@
-import Utilities from 'Utilities';
-import SuggestionList from 'SuggestionList';
-import SuggestionDropdown from 'SuggestionDropdown';
+import jQuery from 'jquery';
+const $ = jQuery;
+
+import Utilities from './Utilities';
+import SuggestionList from './SuggestionList';
+import SuggestionDropdown from './SuggestionDropdown';
 
 function extendFromGlobalOptions(currentOptions, globalOptions, optionList) {
     optionList.forEach(option => {

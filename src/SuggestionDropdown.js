@@ -1,3 +1,6 @@
+import jQuery from 'jquery';
+const $ = jQuery;
+
 class SuggestionDropdown {
     constructor(options) {
         this.width = 0;
