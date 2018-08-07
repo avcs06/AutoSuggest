@@ -2,23 +2,12 @@
     "env": {
         "commonjs": {
             "presets": [
-                [
-                    "env",
-                    {
-                        "useBuiltIns": false
-                    }
-                ]
+                [ "env", { "useBuiltIns": false } ]
             ]
         },
         "es": {
             "presets": [
-                [
-                    "env",
-                    {
-                        "useBuiltIns": false,
-                        "modules": false
-                    }
-                ]
+                [ "env", { "useBuiltIns": false, "modules": false } ]
             ]
         }
     }

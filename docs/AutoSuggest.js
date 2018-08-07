@@ -1,12 +1,48 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('jquery')) :
-	typeof define === 'function' && define.amd ? define(['jquery'], factory) :
-	(global.AutoSuggest = factory(global.jQuery));
-}(this, (function (jQuery) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+	typeof define === 'function' && define.amd ? define(factory) :
+	(global.AutoSuggest = factory());
+}(this, (function () { 'use strict';
 
-jQuery = jQuery && 'default' in jQuery ? jQuery['default'] : jQuery;
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+  return typeof obj;
+} : function (obj) {
+  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+};
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+
+
+
+
+
+
+
+
+
+var classCallCheck = function (instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+};
+
+var createClass = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];
+      descriptor.enumerable = descriptor.enumerable || false;
+      descriptor.configurable = true;
+      if ("value" in descriptor) descriptor.writable = true;
+      Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }
+
+  return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);
+    if (staticProps) defineProperties(Constructor, staticProps);
+    return Constructor;
+  };
+}();
 
 var Utilities = {
     noop: function noop() {},
@@ -63,7 +99,7 @@ var Utilities = {
         var position = 0;
 
         if (typeof input.selectionDirection !== 'undefined') {
-            position = input.selectionDirection == 'backward' ? input.selectionStart : input.selectionEnd;
+            position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
         } else if (document.selection) {
             input.focus();
             var selection = document.selection.createRange();
@@ -75,21 +111,22 @@ var Utilities = {
     },
 
     htmlEncode: function htmlEncode(value) {
-        return $('<div/>').text(value).html();
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    },
+    data: function data(element, key, value) {
+        key = 'autosuggest_' + key;
+        if (typeof value !== 'undefined') {
+            element.dataset[key] = JSON.stringify(value);
+        } else {
+            value = element.dataset[key];
+            return typeof value !== 'undefined' ? JSON.parse(element.dataset[key]) : value;
+        }
     }
-};
-
-var _typeof$1 = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-var $$2 = jQuery;
-var defaultOptions$1 = {
-    trigger: null,
-    caseSensitive: true
 };
 
 function validateSuggestions(suggestions, ignoreOn) {
     return [].concat(suggestions).map(function (suggestion) {
-        var type = typeof suggestion === 'undefined' ? 'undefined' : _typeof$1(suggestion);
+        var type = typeof suggestion === 'undefined' ? 'undefined' : _typeof(suggestion);
         if (type === 'string') {
             suggestion = {
                 show: suggestion,
@@ -121,29 +158,31 @@ function validateSuggestions(suggestions, ignoreOn) {
 
 function SuggestionList(options) {
     // validate options
-    if (options && !options.suggestions) {
+    if (options && !options.values) {
         options = {
-            suggestions: options
+            values: options
         };
     }
 
-    options = $$2.extend(true, {}, defaultOptions$1, options || {});
-    Utilities.ensure('SuggestionList', options, 'suggestions');
+    Utilities.ensure('SuggestionList', options, 'values');
+    if (typeof options.caseSensitive === 'undefined') {
+        options.caseSensitive = true;
+    }
 
-    if (typeof options.suggestions === 'function') {
+    if (typeof options.values === 'function') {
         this.getSuggestions = function (keyword, callback) {
-            options.suggestions(keyword, function (suggestions) {
-                return callback(validateSuggestions(suggestions, true));
+            options.values(keyword, function (values) {
+                return callback(validateSuggestions(values, true));
             });
         };
-    } else if (options.suggestions.constructor === Array || typeof options.suggestions === 'string') {
-        options.suggestions = validateSuggestions(options.suggestions);
+    } else if (options.values.constructor === Array || typeof options.values === 'string') {
+        options.values = validateSuggestions(options.values);
         this.getSuggestions = function (keyword, callback) {
-            var match = new RegExp(keyword, !options.caseSensitive ? 'i' : '');
-            callback(options.suggestions.filter(function (suggestion) {
+            var matcher = new RegExp(keyword, !options.caseSensitive ? 'i' : '');
+            callback(options.values.filter(function (value) {
                 var matchFound = false;
-                for (var i = 0; i < suggestion.on.length; i++) {
-                    if (matchFound = match.test(suggestion.on[i])) {
+                for (var i = 0; i < value.on.length; i++) {
+                    if (matchFound = matcher.test(value.on[i])) {
                         break;
                     }
                 }
@@ -168,315 +207,379 @@ function SuggestionList(options) {
     this.trigger = trigger;
 }
 
-var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var $$3 = jQuery;
-
 var SuggestionDropdown = function () {
-    function SuggestionDropdown(options) {
-        _classCallCheck$1(this, SuggestionDropdown);
+    function SuggestionDropdown() {
+        classCallCheck(this, SuggestionDropdown);
 
         this.width = 0;
-        this.hidden = true;
+        this.isEmpty = true;
+        this.isActive = false;
 
-        this.dropdownContent = $$3('<ul class="dropdown-menu dropdown-menu-left"></ul>');
-        this.dropdown = $$3('<div class="dropdown open as-dropdown" style="display:none; position: absolute;"></div>');
-        $$3('body').append(this.dropdown.append(this.dropdownContent));
+        this.dropdownContent = document.createElement('ul');
+        this.dropdownContent.className = 'dropdown-menu dropdown-menu-left';
+
+        this.dropdown = document.createElement('div');
+        this.dropdown.className = 'dropdown open';
+        this.dropdown.style.position = 'absolute';
+
         this.hide();
+        this.dropdown.appendChild(this.dropdownContent);
+        document.body.appendChild(this.dropdown);
     }
 
-    _createClass$1(SuggestionDropdown, [{
+    createClass(SuggestionDropdown, [{
         key: 'show',
         value: function show(position) {
             if (position) {
-                this.dropdown[0].style.left = position.left + 'px';
-                this.dropdown[0].style.top = position.top + 'px';
+                this.dropdown.style.left = position.left + 'px';
+                this.dropdown.style.top = position.top + 'px';
 
-                if (position.left + this.width > $$3('body').width()) {
-                    this.dropdown.find('.dropdown-menu').removeClass('dropdown-menu-left').addClass('dropdown-menu-right');
+                if (position.left + this.width > document.body.offsetWidth) {
+                    this.dropdownContent.classList.remove('dropdown-menu-left');
+                    this.dropdownContent.classList.add('dropdown-menu-right');
                 } else {
-                    this.dropdown.find('.dropdown-menu').removeClass('dropdown-menu-right').addClass('dropdown-menu-left');
+                    this.dropdownContent.classList.remove('dropdown-menu-right');
+                    this.dropdownContent.classList.add('dropdown-menu-left');
                 }
             }
-            this.dropdown.find('li').removeClass('active');
-            this.dropdown.find('li:first-child').addClass('active');
-            this.dropdown.show();
-            this.hidden = false;
+
+            var activeElement = this.getActive();
+            activeElement && activeElement.classList.remove('active');
+            this.dropdownContent.firstElementChild.classList.add('active');
+
+            this.dropdown.style.display = 'block';
+            this.isActive = true;
         }
     }, {
         key: 'hide',
         value: function hide() {
-            this.dropdown.hide();
-            this.hidden = true;
+            this.dropdown.style.display = 'none';
+            this.isActive = false;
         }
     }, {
-        key: 'setWidth',
-        value: function setWidth() {
-            this.width = this.dropdownContent.width();
+        key: 'empty',
+        value: function empty() {
+            this.dropdownContent.innerHTML = '';
+            this.isEmpty = true;
         }
     }, {
         key: 'fill',
         value: function fill(suggestions, onSet) {
-            var self = this;
-            this.dropdownContent.empty();
+            var _this = this;
 
             suggestions.forEach(function (suggestion) {
-                var dropdownLink = $$3('<li><a>' + suggestion.show + '</a></li>');
-                dropdownLink.data('as-linkcontent', suggestion);
-                dropdownLink.mousedown(function () {
-                    onSet(suggestion);
-                    self.hide();
-                    return false;
+                var dropdownLinkHTML = '<li><a>' + suggestion.show + '</a></li>';
+                _this.dropdownContent.innerHTML += dropdownLinkHTML;
+
+                var dropdownLink = _this.dropdownContent.lastElementChild;
+                Utilities.data(dropdownLink, 'suggestion', suggestion);
+
+                dropdownLink.addEventListener('mouseenter', function () {
+                    _this.getActive().classList.remove('active');
+                    dropdownLink.classList.add('active');
                 });
 
-                self.dropdownContent.append(dropdownLink);
+                dropdownLink.addEventListener('mousedown', function (e) {
+                    onSet(suggestion);
+                    _this.hide();
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
             });
 
-            if (this.hidden) {
+            // Calculate width
+            if (this.isActive) {
+                this.setWidth();
+                if (this.dropdown.style.top) ;
+            } else {
                 this.show();
                 this.setWidth();
                 this.hide();
-            } else {
-                this.setWidth();
             }
+
+            this.isEmpty = false;
+        }
+    }, {
+        key: 'setWidth',
+        value: function setWidth() {
+            this.width = this.dropdownContent.offsetWidth;
+        }
+    }, {
+        key: 'getActive',
+        value: function getActive() {
+            var activeLinks = Array.prototype.slice.call(this.dropdownContent.querySelectorAll('li.active'), 0);
+            while (activeLinks[1]) {
+                activeLinks.pop().classList.remove('active');
+            }
+
+            return activeLinks[0];
         }
     }, {
         key: 'getValue',
-        value: function getValue() {
-            return this.dropdown.find('li.active').data('as-linkcontent');
+        value: function getValue(element) {
+            return Utilities.data(element || this.getActive(), 'suggestion');
         }
     }, {
         key: 'next',
         value: function next() {
-            var activeLink = this.dropdown.find('li.active');
-            var nextLink = activeLink.next();
+            var activeLink = this.getActive();
+            var nextLink = activeLink.nextElementSibling || this.dropdownContent.firstElementChild;
 
-            activeLink.removeClass('active');
-            if (nextLink.length) {
-                nextLink.addClass('active');
-            } else {
-                this.dropdown.find('li:first-child').addClass('active');
-            }
+            activeLink.classList.remove('active');
+            nextLink.classList.add('active');
 
-            return this.getValue();
+            return this.getValue(nextLink);
         }
     }, {
         key: 'prev',
         value: function prev() {
-            var activeLink = this.dropdown.find('li.active');
-            var prevLink = activeLink.prev();
+            var activeLink = this.getActive();
+            var prevLink = activeLink.prevElementSibling || this.dropdownContent.lastElementChild;
 
-            activeLink.removeClass('active');
-            if (prevLink.length) {
-                prevLink.addClass('active');
-            } else {
-                this.dropdown.find('li:last-child').addClass('active');
-            }
+            activeLink.classList.remove('active');
+            prevLink.classList.add('active');
 
-            return this.getValue();
+            return this.getValue(prevLink);
         }
     }]);
-
     return SuggestionDropdown;
 }();
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var $$1 = jQuery;
-
-function extendFromGlobalOptions(currentOptions, globalOptions, optionList) {
-    optionList.forEach(function (option) {
-        if (typeof globalOptions[option] !== 'undefined' && typeof currentOptions[option] === 'undefined') {
-            currentOptions[option] = globalOptions[option];
-        }
-    });
-}
-
-function getCaretPosition(element) {
-    if (element.data('as-isinput')) {
-        var originalValue = element.val();
-        var cursorPosition = Utilities.getCursorPosition(element[0]);
+function getCaretPosition(element, cursorPosition) {
+    if (Utilities.data(element, 'isInput')) {
+        var originalValue = element.value;
         var value = originalValue.slice(0, cursorPosition);
 
         //Create a clone of our input field using div and copy value into div
         //Wrap last character in a span to get its position
-        $$1('.as-positionclone').remove();
+        var oldclone = document.getElementById('autosuggest-positionclone');
+        if (oldclone) {
+            document.body.removeChild(oldclone);
+        }
 
-        var clone = $$1('<div class="as-positionclone"/>');
-        var cloneContent = $$1('<div style="display:inline-block;">' + Utilities.htmlEncode(value.slice(0, -1)) + '<span id="as-positioner">' + Utilities.htmlEncode(value.slice(-1)) + '</span>' + Utilities.htmlEncode(originalValue.slice(cursorPosition)) + '</div>');
+        var clone = document.createElement('div');
+        clone.id = 'autosuggest-positionclone';
 
-        clone.append(cloneContent);
-        Utilities.cloneStyle(element[0], clone[0]);
+        var positioner = document.createElement('span');
+        positioner.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(-1))));
+
+        clone.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(0, -1))));
+        clone.appendChild(positioner);
+        clone.appendChild(document.createTextNode(Utilities.htmlEncode(originalValue.slice(cursorPosition))));
+        Utilities.cloneStyle(element, clone);
 
         //Get position of element and overlap our clone on the element
-        var elementPosition = Utilities.getGlobalOffset(element[0]);
-        clone.css({
-            position: 'absolute',
-            opacity: 0,
-            left: elementPosition.left + 'px',
-            top: elementPosition.top + 'px'
-        });
+        var elementPosition = Utilities.getGlobalOffset(element);
+
+        clone.style.opacity = 0;
+        clone.style.position = 'absolute';
+        clone.style.top = elementPosition.top + 'px';
+        clone.style.left = elementPosition.left + 'px';
 
         //append clone and scroll
-        $$1('body').append(clone);
+        document.body.appendChild(clone);
 
         //Extra styles for the clone depending on type of input
-        if (element.is('input')) {
-            clone.css({ overflowX: 'auto', whiteSpace: 'nowrap' });
+        if (element.tagName === 'INPUT') {
+            clone.style.overflowX = 'auto';
+            clone.style.whiteSpace = 'nowrap';
             if (cursorPosition === originalValue.length) {
-                clone.scrollLeft(cloneContent.width());
+                clone.scrollLeft = clone.scrollWidth - clone.clientWidth;
             } else {
-                clone.scrollLeft(Math.min(Utilities.getScrollLeftForInput(element[0]), cloneContent.width()));
+                clone.scrollLeft = Math.min(Utilities.getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
             }
         } else {
-            cloneContent.css('max-width', '100%');
-            clone.scrollLeft(element.scrollLeft());
-            clone.scrollTop(element.scrollTop());
+            clone.style.maxWidth = '100%';
+            clone.scrollTop = element.scrollTop();
+            clone.scrollLeft = element.scrollLeft();
         }
 
         //Get position of span
-        var caretPosition = Utilities.getGlobalOffset($$1('#as-positioner')[0]);
-        caretPosition.left += 10 - clone.scrollLeft();
-        caretPosition.top += 28 - clone.scrollTop();
-        clone.remove();
+        var caretPosition = Utilities.getGlobalOffset(positioner);
+        caretPosition.left += 10 - clone.scrollLeft;
+        caretPosition.top += 28 - clone.scrollTop;
+        document.body.removeChild(clone);
 
         return caretPosition;
     }
 }
 
-var defaultOptions = {
-    suggestions: []
+var setValue = function setValue(_ref) {
+    var element = _ref.element,
+        trigger = _ref.trigger,
+        cursorPosition = _ref.cursorPosition,
+        suggestion = _ref.suggestion;
+
+    var insertText = suggestion.replaceWith;
+
+    if (element) {
+        if (Utilities.data(element, 'isInput')) {
+            var originalValue = element.value;
+            var value = originalValue.slice(0, cursorPosition);
+            var currentValue = value.split(trigger || /\W/).pop();
+
+            value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
+            var cursorStartPosition = value.length;
+
+            element.value = value + insertText + originalValue.slice(cursorPosition);
+            element.focus();
+
+            var newCursorPositions = suggestion.cursorPosition;
+            var newPosition = cursorStartPosition + insertText.length;
+            var newPosition1 = newPosition + newCursorPositions[0];
+            var newPosition2 = newPosition + newCursorPositions[1];
+
+            element.setSelectionRange(newPosition1, newPosition2);
+        }
+    }
 };
 
 var AutoSuggest = function () {
-    function AutoSuggest(options, inputs) {
-        _classCallCheck(this, AutoSuggest);
+    function AutoSuggest(options) {
+        classCallCheck(this, AutoSuggest);
 
-        options = $$1.extend(true, {}, defaultOptions, options || {});
+        if (!options) {
+            throw new Error('AutoSuggest: Missing required parameter, options');
+        }
 
-        this.isActive = false;
-        this.activeElement = null;
-        this.activeElementCursorPosition = 0;
-        this.activeSuggestionList = null;
-
+        this.inputs = [];
         this.dropdown = new SuggestionDropdown();
 
         // validate suggestions
-        this.suggestionLists = [].concat(options.suggestions);
-
+        this.suggestionLists = options.suggestions || [];
         for (var i = 0; i < this.suggestionLists.length; i++) {
-            var currentSuggestionList = this.suggestionLists[i];
-            if (!currentSuggestionList) {
-                throw new Error('AutoSuggest: invalid suggestion list passed');
-            }
-
-            if (!(currentSuggestionList instanceof SuggestionList)) {
-                if (!currentSuggestionList.suggestions) {
-                    currentSuggestionList = {
-                        suggestions: currentSuggestionList
-                    };
+            var suggestionList = this.suggestionLists[i];
+            if (!(suggestionList instanceof SuggestionList)) {
+                if (!suggestionList.values) {
+                    suggestionList = { values: suggestionList };
                 }
 
-                extendFromGlobalOptions(currentSuggestionList, options, ['caseSensitive', 'trigger']);
-                this.suggestionLists[i] = new SuggestionList(currentSuggestionList);
+                if (typeof suggestionList.caseSensitive === 'undefined' && typeof options.caseSensitive !== 'undefined') {
+                    suggestionList.caseSensitive = options.caseSensitive;
+                }
+
+                this.suggestionLists[i] = new SuggestionList(suggestionList);
             }
         }
 
-        inputs && this.addInputs(inputs);
-    }
-
-    _createClass(AutoSuggest, [{
-        key: 'addInputs',
-        value: function addInputs(inputs) {
-            inputs = $$1(inputs);
+        events: {
             var self = this;
+            var activeElement = null;
+            var activeSuggestionList = null;
+            var activeElementCursorPosition = 0;
 
-            // validate element
-            inputs.each(function () {
-                var that = $$1(this);
-                if (this.isContentEditable) {
-                    that.data('as-isinput', false);
-                } else if (that.is('input[type = text],textarea')) {
-                    that.data('as-isinput', true);
-                } else {
-                    throw new Error('AutoSuggest: Invalid input: only input[type = text], textarea and contenteditable elements are supported');
-                }
-            });
+            this.onBlurHandler = function () {
+                activeElement = null;
+                self.dropdown.hide();
+            };
 
-            // init events
-            inputs.on('input', function () {
-                var that = $$1(this);
-                var value = that.val();
+            this.onFocusHandler = function () {
+                activeElement = this;
+            };
 
-                if (that.data('as-isinput')) {
+            this.onInputHandler = function () {
+                var _this = this;
+
+                var value = this.value;
+
+                if (Utilities.data(this, 'isInput')) {
                     var cursorPosition = Utilities.getCursorPosition(this);
-                    self.activeElementCursorPosition = cursorPosition;
+
                     value = value.slice(0, cursorPosition);
+                    activeElementCursorPosition = cursorPosition;
                 }
 
-                self.isActive = false;
+                handleDropdown: {
+                    (function () {
+                        var execute = function () {
+                            var i = 0;
+                            var queue = [];
 
-                var _loop = function _loop(currentSuggestionList) {
-                    if (currentSuggestionList.regex.test(value)) {
-                        self.activeSuggestionList = currentSuggestionList;
-                        var match = value.match(currentSuggestionList.regex)[1];
-                        currentSuggestionList.getSuggestions(match, function (results) {
-                            if (results.length) {
-                                self.isActive = true;
-                                self.dropdown.fill(results, function (suggestion) {
-                                    return self.setValue(suggestion, currentSuggestionList);
-                                });
-                                self.dropdown.show(getCaretPosition(that));
-                            } else {
-                                self.dropdown.hide();
+                            return function (f, j) {
+                                queue[j - i] = f;
+                                while (!!queue[0]) {
+                                    ++i, queue.shift()();
+                                }
+                            };
+                        }();
+
+                        var i = 0;
+                        var triggerMatchFound = false;
+
+                        self.dropdown.empty();
+
+                        var _loop = function _loop(_suggestionList) {
+                            if (_suggestionList.regex.test(value)) {
+                                triggerMatchFound = true;
+                                activeSuggestionList = _suggestionList;
+
+                                var match = value.match(_suggestionList.regex)[1];
+                                (function (i) {
+                                    _suggestionList.getSuggestions(match, function (results) {
+                                        execute(function () {
+                                            if (self.dropdown.isEmpty) {
+                                                if (results.length) {
+                                                    self.dropdown.fill(results, function (suggestion) {
+                                                        setValue({
+                                                            element: _this,
+                                                            trigger: _suggestionList.trigger,
+                                                            cursorPosition: activeElementCursorPosition,
+                                                            suggestion: suggestion
+                                                        });
+                                                    });
+                                                    self.dropdown.show(getCaretPosition(_this, activeElementCursorPosition));
+                                                } else {
+                                                    self.dropdown.hide();
+                                                }
+                                            }
+                                        }, i);
+                                    });
+                                })(i++);
                             }
-                        });
-                        return 'break';
-                    }
-                };
+                        };
 
-                var _iteratorNormalCompletion = true;
-                var _didIteratorError = false;
-                var _iteratorError = undefined;
+                        var _iteratorNormalCompletion = true;
+                        var _didIteratorError = false;
+                        var _iteratorError = undefined;
 
-                try {
-                    for (var _iterator = self.suggestionLists[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-                        var currentSuggestionList = _step.value;
+                        try {
+                            for (var _iterator = self.suggestionLists[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                                var _suggestionList = _step.value;
 
-                        var _ret = _loop(currentSuggestionList);
-
-                        if (_ret === 'break') break;
-                    }
-                } catch (err) {
-                    _didIteratorError = true;
-                    _iteratorError = err;
-                } finally {
-                    try {
-                        if (!_iteratorNormalCompletion && _iterator.return) {
-                            _iterator.return();
+                                _loop(_suggestionList);
+                            }
+                        } catch (err) {
+                            _didIteratorError = true;
+                            _iteratorError = err;
+                        } finally {
+                            try {
+                                if (!_iteratorNormalCompletion && _iterator.return) {
+                                    _iterator.return();
+                                }
+                            } finally {
+                                if (_didIteratorError) {
+                                    throw _iteratorError;
+                                }
+                            }
                         }
-                    } finally {
-                        if (_didIteratorError) {
-                            throw _iteratorError;
+
+                        if (!triggerMatchFound) {
+                            self.dropdown.hide();
                         }
-                    }
+                    })();
                 }
+            };
 
-                if (!self.isActive) {
-                    self.dropdown.hide();
-                }
-            });
-
-            inputs.keydown(function (event, originalEvent) {
-                if (self.isActive) {
+            this.onKeyDownHandler = function (e) {
+                if (self.dropdown.isActive) {
                     var newValue = void 0;
-                    var e = originalEvent || event;
                     if (e.keyCode === 13 || e.keyCode === 9) {
-                        self.setValue(self.dropdown.getValue(), self.activeSuggestionList);
+                        setValue({
+                            element: this,
+                            trigger: activeSuggestionList.trigger,
+                            cursorPosition: activeElementCursorPosition,
+                            suggestion: self.dropdown.getValue()
+                        });
                         self.dropdown.hide();
                     } else if (e.keyCode == 40) {
                         newValue = self.dropdown.next();
@@ -486,61 +589,88 @@ var AutoSuggest = function () {
                         return true;
                     }
                     e.preventDefault();
-                    event.stopImmediatePropagation();
+                    e.stopImmediatePropagation();
                 }
-            });
+            };
+        }
 
-            inputs.blur(function () {
-                self.activeElement = null;
-                self.isActive = false;
-                self.dropdown.hide();
-            }).focus(function () {
-                self.activeElement = $$1(this);
+        // initialize events on inputs
+
+        for (var _len = arguments.length, inputs = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+            inputs[_key - 1] = arguments[_key];
+        }
+
+        this.addInputs.apply(this, inputs);
+    }
+
+    createClass(AutoSuggest, [{
+        key: 'addInputs',
+        value: function addInputs() {
+            var _this2 = this;
+
+            for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+                args[_key2] = arguments[_key2];
+            }
+
+            var inputs = Array.prototype.concat.apply([], args.map(function (d) {
+                return d[0] ? Array.prototype.slice.call(d, 0) : d;
+            }));
+
+            inputs.forEach(function (input) {
+                // validate element
+                if (input.isContentEditable) {
+                    Utilities.data(input, 'isInput', false);
+                } else if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT' && input.type === 'text') {
+                    Utilities.data(input, 'isInput', true);
+                } else {
+                    throw new Error('AutoSuggest: Invalid input: only input[type = text], textarea and contenteditable elements are supported');
+                }
+
+                // init events
+                input.addEventListener('blur', _this2.onBlurHandler);
+                input.addEventListener('focus', _this2.onFocusHandler);
+
+                input.addEventListener('input', _this2.onInputHandler);
+                input.addEventListener('keydown', _this2.onKeyDownHandler);
+
+                Utilities.data(input, 'index', _this2.inputs.push(input) - 1);
             });
         }
     }, {
-        key: 'setValue',
-        value: function setValue(suggestion, suggestionList) {
-            var self = this;
-            var element = this.activeElement;
-            var insertText = suggestion.replaceWith;
+        key: 'removeInputs',
+        value: function removeInputs() {
+            var _this3 = this;
 
-            if (element) {
-                if (element.data('as-isinput')) {
-                    var originalValue = element.val();
-                    var cursorPosition = self.activeElementCursorPosition;
-                    var value = originalValue.slice(0, cursorPosition);
-                    var currentValue = value.split(suggestionList.trigger || /\W/).pop();
-
-                    value = value.slice(0, 0 - currentValue.length - (suggestionList.trigger || '').length);
-                    var cursorStartPosition = value.length;
-
-                    element.val(value + insertText + originalValue.slice(cursorPosition));
-                    element.focus();
-
-                    var newCursorPositions = suggestion.cursorPosition;
-                    var newPosition = cursorStartPosition + insertText.length;
-                    var newPosition1 = newPosition + newCursorPositions[0];
-                    var newPosition2 = newPosition + newCursorPositions[1];
-
-                    element[0].setSelectionRange(newPosition1, newPosition2);
-                }
+            for (var _len3 = arguments.length, args = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+                args[_key3] = arguments[_key3];
             }
-            this.isActive = false;
+
+            var inputs = Array.prototype.concat.apply([], args.map(function (d) {
+                return d[0] ? Array.prototype.slice.call(d, 0) : d;
+            }));
+
+            inputs.forEach(function (input) {
+                var index = Utilities.data(input, 'index');
+                if (!isNaN(index)) {
+                    _this3.inputs.slice(index, 1);
+
+                    // destroy events
+                    input.removeEventListener('blur', _this3.onBlurHandler);
+                    input.removeEventListener('focus', _this3.onFocusHandler);
+
+                    input.removeEventListener('input', _this3.onInputHandler);
+                    input.removeEventListener('keydown', _this3.onKeyDownHandler);
+                }
+            });
+        }
+    }, {
+        key: 'destroy',
+        value: function destroy() {
+            this.removeInputs(this.inputs);
         }
     }]);
-
     return AutoSuggest;
 }();
-
-$$1.fn.autoSuggest = function (options) {
-    if (options instanceof AutoSuggest) {
-        options.addInputs(this);
-        return options;
-    } else {
-        return new AutoSuggest(options, this);
-    }
-};
 
 return AutoSuggest;
 

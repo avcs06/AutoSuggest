@@ -119,11 +119,11 @@ $('#input').autoSuggest($('#textarea').autoSuggest({
         <script src="jquery.js"></script>
         <script src="AutoSuggest.js"></script>
         <script type="text/javascript">
-            $('#input').autoSuggest($('#textarea').autoSuggest({
+            const instance = new AutoSuggest({
                 suggestions: [
                     {
                         trigger: '<',
-                        suggestions: [
+                        values: [
                             {
                                 on: 'script',
                                 show: 'script',
@@ -133,7 +133,7 @@ $('#input').autoSuggest($('#textarea').autoSuggest({
                         ]
                     }, {
                         trigger: '@',
-                        suggestions: [
+                        values: [
                             {
                                 on: ['avcs', 'cham', 'chandu'],
                                 show: 'Chandrasekhar Ambula V',
@@ -142,27 +142,27 @@ $('#input').autoSuggest($('#textarea').autoSuggest({
                         ]
                     }, {
                         trigger: '//',
-                        suggestions: [ 'hello', 'world', 'idiot', 'stupid', 'rascal', 'avcs' ]
-                    }, function (keyword, callback) {
+                        values: ['hello', 'world', 'idiot', 'stupid', 'rascal', 'avcs']
+                    }, function(keyword, callback) {
                         keyword = keyword.toLowerCase();
 
                         var results = [];
                         var dataset = $('#input').val() + $('#textarea').val();
                         dataset = dataset.toLowerCase().split(/\s+/);
                         dataset.forEach(function(word) {
-                            if(
+                            if (
                                 word.length >= 4 &&
                                 !word.indexOf(keyword) &&
                                 word !== keyword &&
                                 results.indexOf(word) === -1
                             ) {
-                                results.push(word);   
+                                results.push(word);
                             }
                         });
                         callback(results);
                     }
                 ]
-            }));
+            }, $('#input'), $('#textarea'));
         </script>
     </body>
 </html>

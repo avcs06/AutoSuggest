@@ -7,13 +7,17 @@ var env = process.env.NODE_ENV
 var config = {
     format: 'umd',
     moduleName: 'AutoSuggest',
-    external: ['jquery'],
     plugins: [
         nodeResolve({
             jsnext: true
         }),
+        // due to https://github.com/rollup/rollup/wiki/Troubleshooting#name-is-not-exported-by-module
+        commonjs({
+            include: 'node_modules/**'
+        }),
         babel({
-            exclude: 'node_modules/**'
+            exclude: 'node_modules/**',
+            "plugins": [ "external-helpers" ]
         })
     ]
 }

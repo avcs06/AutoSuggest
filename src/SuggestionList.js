@@ -1,11 +1,4 @@
-import jQuery from 'jquery';
 import Utilities from './Utilities';
-
-const $ = jQuery;
-const defaultOptions = {
-    trigger: null,
-    caseSensitive: true
-};
 
 function validateSuggestions (suggestions, ignoreOn) {
     return [].concat(suggestions).map(suggestion => {
@@ -41,28 +34,30 @@ function validateSuggestions (suggestions, ignoreOn) {
 
 function SuggestionList(options) {
     // validate options
-    if (options && !options.suggestions) {
+    if (options && !options.values) {
         options = {
-            suggestions: options
+            values: options
         };
     }
 
-    options = $.extend(true, {}, defaultOptions, options || {});
-    Utilities.ensure('SuggestionList', options, 'suggestions');
+    Utilities.ensure('SuggestionList', options, 'values');
+    if (typeof options.caseSensitive === 'undefined') {
+        options.caseSensitive = true;
+    }
 
-    if (typeof options.suggestions === 'function') {
+    if (typeof options.values === 'function') {
         this.getSuggestions = (keyword, callback) => {
-            options.suggestions(keyword, suggestions => callback(validateSuggestions(suggestions, true)));
+            options.values(keyword, values => callback(validateSuggestions(values, true)));
         };
-    } else if (options.suggestions.constructor === Array || typeof options.suggestions === 'string') {
-        options.suggestions = validateSuggestions(options.suggestions);
+    } else if (options.values.constructor === Array || typeof options.values === 'string') {
+        options.values = validateSuggestions(options.values);
         this.getSuggestions = (keyword, callback) => {
-            const match = new RegExp(keyword, !options.caseSensitive ? 'i' : '');
+            const matcher = new RegExp(keyword, !options.caseSensitive ? 'i' : '');
             callback (
-                options.suggestions.filter(suggestion => {
+                options.values.filter(value => {
                     let matchFound = false;
-                    for (let i = 0; i < suggestion.on.length; i++) {
-                        if (matchFound = match.test(suggestion.on[i])) {
+                    for (let i = 0; i < value.on.length; i++) {
+                        if (matchFound = matcher.test(value.on[i])) {
                             break;
                         }
                     }
@@ -84,7 +79,7 @@ function SuggestionList(options) {
     } else {
         this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
     }
-    
+
     this.trigger = trigger;
 }
 

@@ -1,225 +1,267 @@
-import jQuery from 'jquery';
-const $ = jQuery;
-
 import Utilities from './Utilities';
 import SuggestionList from './SuggestionList';
 import SuggestionDropdown from './SuggestionDropdown';
 
-function extendFromGlobalOptions(currentOptions, globalOptions, optionList) {
-    optionList.forEach(option => {
-        if (typeof globalOptions[option] !== 'undefined' && typeof currentOptions[option] === 'undefined') {
-            currentOptions[option] = globalOptions[option];
-        }
-    });
-}
-
-function getCaretPosition(element) {
-    if (element.data('as-isinput')) {
-        const originalValue = element.val();
-        const cursorPosition = Utilities.getCursorPosition(element[0]);
+function getCaretPosition(element, cursorPosition) {
+    if (Utilities.data(element, 'isInput')) {
+        const originalValue = element.value;
         const value = originalValue.slice(0, cursorPosition);
 
         //Create a clone of our input field using div and copy value into div
         //Wrap last character in a span to get its position
-        $('.as-positionclone').remove();
+        const oldclone = document.getElementById('autosuggest-positionclone');
+        if (oldclone) {
+            document.body.removeChild(oldclone);
+        }
 
-        const clone = $('<div class="as-positionclone"/>');
-        const cloneContent = $(`<div style="display:inline-block;">${Utilities.htmlEncode(value.slice(0, -1))}<span id="as-positioner">${Utilities.htmlEncode(value.slice(-1))}</span>${Utilities.htmlEncode(originalValue.slice(cursorPosition))}</div>`);
+        const clone = document.createElement('div');
+        clone.id = 'autosuggest-positionclone';
 
-        clone.append(cloneContent);
-        Utilities.cloneStyle(element[0], clone[0]);
+        const positioner = document.createElement('span');
+        positioner.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(-1))));
+
+        clone.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(0, -1))));
+        clone.appendChild(positioner);
+        clone.appendChild(document.createTextNode(Utilities.htmlEncode(originalValue.slice(cursorPosition))));
+        Utilities.cloneStyle(element, clone);
 
         //Get position of element and overlap our clone on the element
-        const elementPosition = Utilities.getGlobalOffset(element[0]);
-        clone.css({
-            position: 'absolute',
-            opacity: 0,
-            left: `${elementPosition.left}px`,
-            top: `${elementPosition.top}px`,
-        });
+        const elementPosition = Utilities.getGlobalOffset(element);
+
+        clone.style.opacity = 0;
+        clone.style.position = 'absolute';
+        clone.style.top = `${elementPosition.top}px`;
+        clone.style.left = `${elementPosition.left}px`;
 
         //append clone and scroll
-        $('body').append(clone);
+        document.body.appendChild(clone);
 
         //Extra styles for the clone depending on type of input
-        if (element.is('input')) {
-            clone.css({ overflowX: 'auto', whiteSpace: 'nowrap' });
+        if (element.tagName === 'INPUT') {
+            clone.style.overflowX = 'auto';
+            clone.style.whiteSpace = 'nowrap';
             if (cursorPosition === originalValue.length) {
-                clone.scrollLeft(cloneContent.width());
+                clone.scrollLeft = clone.scrollWidth - clone.clientWidth;
             } else {
-                clone.scrollLeft(Math.min(Utilities.getScrollLeftForInput(element[0]), cloneContent.width()));
+                clone.scrollLeft = Math.min(Utilities.getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
             }
         } else {
-            cloneContent.css('max-width', '100%');
-            clone.scrollLeft(element.scrollLeft());
-            clone.scrollTop(element.scrollTop());
+            clone.style.maxWidth = '100%';
+            clone.scrollTop = element.scrollTop();
+            clone.scrollLeft = element.scrollLeft();
         }
 
         //Get position of span
-        const caretPosition = Utilities.getGlobalOffset($('#as-positioner')[0]);
-        caretPosition.left += 10 - clone.scrollLeft();
-        caretPosition.top += 28 - clone.scrollTop();
-        clone.remove();
+        const caretPosition = Utilities.getGlobalOffset(positioner);
+        caretPosition.left += 10 - clone.scrollLeft;
+        caretPosition.top += 28 - clone.scrollTop;
+        document.body.removeChild(clone);
 
         return caretPosition;
     }
 }
 
-const defaultOptions = {
-    suggestions: [],
+const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
+    const insertText = suggestion.replaceWith;
+
+    if (element) {
+        if (Utilities.data(element, 'isInput')) {
+            const originalValue = element.value;
+            let value = originalValue.slice(0, cursorPosition);
+            const currentValue = value.split(trigger || /\W/).pop();
+
+            value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
+            const cursorStartPosition = value.length;
+
+            element.value = value + insertText + originalValue.slice(cursorPosition);
+            element.focus();
+
+            const newCursorPositions = suggestion.cursorPosition;
+            const newPosition = cursorStartPosition + insertText.length;
+            const newPosition1 = newPosition + newCursorPositions[0];
+            const newPosition2 = newPosition + newCursorPositions[1];
+
+            element.setSelectionRange(newPosition1, newPosition2);
+        }
+    }
 };
 
 class AutoSuggest {
-    constructor(options, inputs) {
-        options = $.extend(true, {}, defaultOptions, options || {});
+    constructor(options, ...inputs) {
+        if (!options) {
+            throw new Error(`AutoSuggest: Missing required parameter, options`);
+        }
 
-        this.isActive = false;
-        this.activeElement = null;
-        this.activeElementCursorPosition = 0;
-        this.activeSuggestionList = null;
-
+        this.inputs = [];
         this.dropdown = new SuggestionDropdown();
 
         // validate suggestions
-        this.suggestionLists = [].concat(options.suggestions);
-
+        this.suggestionLists = options.suggestions || [];
         for (let i = 0; i < this.suggestionLists.length; i++) {
-            let currentSuggestionList = this.suggestionLists[i];
-            if (!currentSuggestionList) {
-                throw new Error('AutoSuggest: invalid suggestion list passed');
-            }
-
-            if (!(currentSuggestionList instanceof SuggestionList)) {
-                if (!currentSuggestionList.suggestions) {
-                    currentSuggestionList = {
-                        suggestions: currentSuggestionList
-                    };
+            let suggestionList = this.suggestionLists[i];
+            if (!(suggestionList instanceof SuggestionList)) {
+                if (!suggestionList.values) {
+                    suggestionList = { values: suggestionList };
                 }
 
-                extendFromGlobalOptions(currentSuggestionList, options, ['caseSensitive', 'trigger']);
-                this.suggestionLists[i] = new SuggestionList(currentSuggestionList);
+                if (typeof suggestionList.caseSensitive === 'undefined' && typeof options.caseSensitive !== 'undefined') {
+                    suggestionList.caseSensitive = options.caseSensitive;
+                }
+
+                this.suggestionLists[i] = new SuggestionList(suggestionList);
             }
         }
 
-        inputs && this.addInputs(inputs);
+        events: {
+            const self = this;
+            let activeElement = null;
+            let activeSuggestionList = null;
+            let activeElementCursorPosition = 0;
+
+
+            this.onBlurHandler = function() {
+                activeElement = null;
+                self.dropdown.hide();
+            };
+
+            this.onFocusHandler = function() {
+                activeElement = this;
+            };
+
+            this.onInputHandler = function() {
+                let value = this.value;
+
+                if (Utilities.data(this, 'isInput')) {
+                    const cursorPosition = Utilities.getCursorPosition(this);
+
+                    value = value.slice(0, cursorPosition);
+                    activeElementCursorPosition = cursorPosition;
+                }
+
+                handleDropdown: {
+                    const execute = (() => {
+                        let i = 0;
+                        const queue = [];
+
+                        return (f, j) => {
+                            queue[j - i] = f;
+                            while (!!queue[0]) ++i, queue.shift()();
+                        };
+                    })();
+
+                    let i = 0;
+                    let triggerMatchFound = false;
+
+                    self.dropdown.empty();
+                    for (let suggestionList of self.suggestionLists) {
+                        if (suggestionList.regex.test(value)) {
+                            triggerMatchFound = true;
+                            activeSuggestionList = suggestionList;
+
+                            const match = value.match(suggestionList.regex)[1];
+                            (i => {
+                                suggestionList.getSuggestions(match, results => {
+                                    execute(() => {
+                                        if (self.dropdown.isEmpty) {
+                                            if (results.length) {
+                                                self.dropdown.fill(results, suggestion => {
+                                                    setValue({
+                                                        element: this,
+                                                        trigger: suggestionList.trigger,
+                                                        cursorPosition: activeElementCursorPosition,
+                                                        suggestion: suggestion,
+                                                    });
+                                                });
+                                                self.dropdown.show(getCaretPosition(this, activeElementCursorPosition));
+                                            } else {
+                                                self.dropdown.hide();
+                                            }
+                                        }
+                                    }, i);
+                                });
+                            })(i++);
+                        }
+                    }
+
+                    if (!triggerMatchFound) {
+                        self.dropdown.hide();
+                    }
+                }
+            };
+
+            this.onKeyDownHandler = function(e) {
+                if (self.dropdown.isActive) {
+                    let newValue;
+                    if (e.keyCode === 13 || e.keyCode === 9) {
+                        setValue({
+                            element: this,
+                            trigger: activeSuggestionList.trigger,
+                            cursorPosition: activeElementCursorPosition,
+                            suggestion: self.dropdown.getValue()
+                        });
+                        self.dropdown.hide();
+                    } else if (e.keyCode == 40) {
+                        newValue = self.dropdown.next();
+                    } else if (e.keyCode == 38) {
+                        newValue = self.dropdown.prev();
+                    } else {
+                        return true;
+                    }
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                }
+            };
+        }
+
+        // initialize events on inputs
+        this.addInputs(...inputs);
     }
 
-    addInputs(inputs) {
-        inputs = $(inputs);
-        const self = this;
+    addInputs(...args) {
+        const inputs = Array.prototype.concat.apply([], args.map(d => d[0] ? Array.prototype.slice.call(d, 0) : d));
 
-        // validate element
-        inputs.each(function() {
-            const that = $(this);
-            if (this.isContentEditable) {
-                that.data('as-isinput', false);
-            } else if (that.is('input[type = text],textarea')) {
-                that.data('as-isinput', true);
+        inputs.forEach(input => {
+            // validate element
+            if (input.isContentEditable) {
+                Utilities.data(input, 'isInput', false)
+            } else if (input.tagName === 'TEXTAREA' || (input.tagName === 'INPUT' && input.type === 'text')) {
+                Utilities.data(input, 'isInput', true)
             } else {
                 throw new Error('AutoSuggest: Invalid input: only input[type = text], textarea and contenteditable elements are supported');
             }
-        });
 
-        // init events
-        inputs.on('input', function() {
-            const that = $(this);
-            let value = that.val();
+            // init events
+            input.addEventListener('blur', this.onBlurHandler);
+            input.addEventListener('focus', this.onFocusHandler);
 
-            if (that.data('as-isinput')) {
-                const cursorPosition = Utilities.getCursorPosition(this);
-                self.activeElementCursorPosition = cursorPosition;
-                value = value.slice(0, cursorPosition);
-            }
+            input.addEventListener('input', this.onInputHandler);
+            input.addEventListener('keydown', this.onKeyDownHandler);
 
-            self.isActive = false;
-
-            for (const currentSuggestionList of self.suggestionLists) {
-                if (currentSuggestionList.regex.test(value)) {
-                    self.activeSuggestionList = currentSuggestionList;
-                    const match = value.match(currentSuggestionList.regex)[1];
-                    currentSuggestionList.getSuggestions(match, results => {
-                        if (results.length) {
-                            self.isActive = true;
-                            self.dropdown.fill(results, suggestion => self.setValue(suggestion, currentSuggestionList));
-                            self.dropdown.show(getCaretPosition(that));
-                        } else {
-                            self.dropdown.hide();
-                        }
-                    });
-                    break;
-                }
-            }
-
-            if (!self.isActive) {
-                self.dropdown.hide();
-            }
-        });
-
-        inputs.keydown((event, originalEvent) => {
-            if (self.isActive) {
-                let newValue;
-                const e = originalEvent||event;
-                if (e.keyCode === 13 || e.keyCode === 9) {
-                    self.setValue(self.dropdown.getValue(), self.activeSuggestionList);
-                    self.dropdown.hide();
-                } else if (e.keyCode == 40) {
-                    newValue = self.dropdown.next();
-                } else if (e.keyCode == 38) {
-                    newValue = self.dropdown.prev();
-                } else {
-                    return true;
-                }
-                e.preventDefault();
-                event.stopImmediatePropagation();
-            }
-        });
-
-        inputs.blur(() => {
-            self.activeElement = null;
-            self.isActive = false;
-            self.dropdown.hide();
-        }).focus(function () {
-            self.activeElement = $(this);
+            Utilities.data(input, 'index', this.inputs.push(input) - 1);
         });
     }
 
-    setValue(suggestion, suggestionList) {
-        const self = this;
-        const element = this.activeElement;
-        const insertText = suggestion.replaceWith;
+    removeInputs(...args) {
+        const inputs = Array.prototype.concat.apply([], args.map(d => d[0] ? Array.prototype.slice.call(d, 0) : d));
 
-        if (element) {
-            if (element.data('as-isinput')) {
-                const originalValue = element.val();
-                const cursorPosition = self.activeElementCursorPosition;
-                let value = originalValue.slice(0, cursorPosition);
-                const currentValue = value.split(suggestionList.trigger || /\W/).pop();
+        inputs.forEach(input => {
+            const index = Utilities.data(input, 'index');
+            if (!isNaN(index)) {
+                this.inputs.slice(index, 1);
 
-                value = value.slice(0, 0 - currentValue.length - (suggestionList.trigger || '').length);
-                const cursorStartPosition = value.length;
+                // destroy events
+                input.removeEventListener('blur', this.onBlurHandler);
+                input.removeEventListener('focus', this.onFocusHandler);
 
-                element.val(value + insertText + originalValue.slice(cursorPosition));
-                element.focus();
-
-                const newCursorPositions = suggestion.cursorPosition;
-                const newPosition = cursorStartPosition + insertText.length;
-                const newPosition1 = newPosition + newCursorPositions[0];
-                const newPosition2 = newPosition + newCursorPositions[1];
-
-                element[0].setSelectionRange(newPosition1, newPosition2);
+                input.removeEventListener('input', this.onInputHandler);
+                input.removeEventListener('keydown', this.onKeyDownHandler);
             }
-        }
-        this.isActive = false;
+        });
+    }
+
+    destroy() {
+        this.removeInputs(this.inputs);
     }
 }
-
-$.fn.autoSuggest = function(options) {
-    if (options instanceof AutoSuggest) {
-        options.addInputs(this);
-        return options;
-    } else {
-        return new AutoSuggest(options, this);
-    }
-};
 
 export default AutoSuggest;

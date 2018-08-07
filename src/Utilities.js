@@ -49,20 +49,29 @@ const Utilities = {
     },
     getCursorPosition: input => {
         let position = 0;
-    
+
         if (typeof input.selectionDirection !== 'undefined') {
-            position = input.selectionDirection=='backward' ? input.selectionStart : input.selectionEnd;
+            position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
         } else if (document.selection) {
             input.focus();
             const selection = document.selection.createRange();
-            selection.moveStart('character', -input.value.length);
+            selection.moveStart('character', - input.value.length);
             position = selection.text.length;
         }
-    
+
         return position;
     },
 
-    htmlEncode: value => $('<div/>').text(value).html()
+    htmlEncode: value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
+    data: (element, key, value) => {
+        key = 'autosuggest_' + key;
+        if (typeof value !== 'undefined') {
+            element.dataset[key] = JSON.stringify(value);
+        } else {
+            value = element.dataset[key];
+            return typeof value !== 'undefined' ? JSON.parse(element.dataset[key]) : value;
+        }
+    }
 };
 
 export default Utilities;
