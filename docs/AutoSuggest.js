@@ -44,83 +44,91 @@ var createClass = function () {
   };
 }();
 
-var Utilities = {
-    noop: function noop() {},
-    noopd: function noopd(data) {
-        return data;
-    },
+var htmlEncode = function htmlEncode(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
 
-    ensure: function ensure(context, object, keys) {
-        [].concat(keys).forEach(function (key) {
-            if (typeof object[key] === 'undefined') {
-                throw new Error('AutoSuggest: Missing required parameter, ' + context + '.' + key);
-            }
-        });
-    },
-    ensureType: function ensureType(context, object, key, type) {
-        [].concat(object[key]).forEach(function (value) {
-            if ((typeof value === 'undefined' ? 'undefined' : _typeof(value)) !== type) {
-                throw new Error('AutoSuggest: Invalid Type for ' + context + '.' + key + ', expected ' + type);
-            }
-        });
-    },
-
-    cloneStyle: function cloneStyle(element1, element2) {
-        var style1 = window.getComputedStyle($(element1)[0], null);
-        var style2 = {};
-
-        Array.prototype.forEach.call(style1, function (property) {
-            style2[property] = style1.getPropertyValue(property);
-        });
-        $(element2).css(style2);
-    },
-    getGlobalOffset: function getGlobalOffset(element) {
-        var obj = element;
-        var left = 0;
-        var top = 0;
-        do {
-            left += obj.offsetLeft;
-            top += obj.offsetTop;
-        } while (obj = obj.offsetParent);
-        return { left: left, top: top };
-    },
-    getScrollLeftForInput: function getScrollLeftForInput(element) {
-        if (element.createTextRange) {
-            var range = element.createTextRange();
-            var inputStyle = window.getComputedStyle(element, undefined);
-            var paddingLeft = parseFloat(inputStyle.paddingLeft);
-            var rangeRect = range.getBoundingClientRect();
-            return element.getBoundingClientRect().left + element.clientLeft + paddingLeft - rangeRect.left;
-        } else {
-            return $(element).scrollLeft();
+var ensure = function ensure(context, object, keys) {
+    [].concat(keys).forEach(function (key) {
+        if (typeof object[key] === 'undefined') {
+            throw new Error('AutoSuggest: Missing required parameter, ' + context + '.' + key);
         }
-    },
-    getCursorPosition: function getCursorPosition(input) {
-        var position = 0;
-
-        if (typeof input.selectionDirection !== 'undefined') {
-            position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
-        } else if (document.selection) {
-            input.focus();
-            var selection = document.selection.createRange();
-            selection.moveStart('character', -input.value.length);
-            position = selection.text.length;
+    });
+};
+var ensureType = function ensureType(context, object, key, type) {
+    [].concat(object[key]).forEach(function (value) {
+        if ((typeof value === 'undefined' ? 'undefined' : _typeof(value)) !== type) {
+            throw new Error('AutoSuggest: Invalid Type for ' + context + '.' + key + ', expected ' + type);
         }
+    });
+};
 
-        return position;
-    },
-
-    htmlEncode: function htmlEncode(value) {
-        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    },
-    data: function data(element, key, value) {
-        key = 'autosuggest_' + key;
-        if (typeof value !== 'undefined') {
-            element.dataset[key] = JSON.stringify(value);
-        } else {
-            value = element.dataset[key];
-            return typeof value !== 'undefined' ? JSON.parse(element.dataset[key]) : value;
+var cloneStyle = function cloneStyle(element1, element2) {
+    var allStyles = window.getComputedStyle(element1);
+    for (var style in allStyles) {
+        if (allStyles.hasOwnProperty(style)) {
+            element2.style.setProperty(style, allStyles[style]);
         }
+    }
+};
+var getGlobalOffset = function getGlobalOffset($0) {
+    var node = $0,
+        top = 0,
+        left = 0;
+
+    do {
+        left += node.offsetLeft;
+        top += node.offsetTop;
+    } while (node = node.offsetParent);
+
+    return { left: left, top: top };
+};
+
+var getScrollLeftForInput = function getScrollLeftForInput(element) {
+    if (element.createTextRange) {
+        var range = element.createTextRange();
+        var inputStyle = window.getComputedStyle(element);
+        var paddingLeft = parseFloat(inputStyle.paddingLeft);
+        var rangeRect = range.getBoundingClientRect();
+        return element.getBoundingClientRect().left + element.clientLeft + paddingLeft - rangeRect.left;
+    } else {
+        return element.scrollLeft;
+    }
+};
+var getCursorPosition = function getCursorPosition(input) {
+    var position = 0;
+
+    if (typeof input.selectionDirection !== 'undefined') {
+        position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
+    } else if (document.selection) {
+        input.focus();
+        var selection = document.selection.createRange();
+        selection.moveStart('character', -input.value.length);
+        position = selection.text.length;
+    }
+
+    return position;
+};
+
+var makeAsyncQueueRunner = function makeAsyncQueueRunner() {
+    var i = 0;
+    var queue = [];
+
+    return function (f, j) {
+        queue[j - i] = f;
+        while (queue[0]) {
+            ++i, queue.shift()();
+        }
+    };
+};
+
+var data = function data(element, key, value) {
+    key = 'autosuggest_' + key;
+    if (typeof value !== 'undefined') {
+        element.dataset[key] = JSON.stringify(value);
+    } else {
+        value = element.dataset[key];
+        return typeof value !== 'undefined' ? JSON.parse(element.dataset[key]) : value;
     }
 };
 
@@ -138,17 +146,17 @@ function validateSuggestions(suggestions, ignoreOn) {
                 suggestion.on = [suggestion.show];
             }
         } else if (type === 'object') {
-            Utilities.ensure('Suggestion', suggestion, ['show', 'replaceWith']);
-            Utilities.ensureType('Suggestion', suggestion, 'show', 'string');
-            Utilities.ensureType('Suggestion', suggestion, 'replaceWith', 'string');
+            ensure('Suggestion', suggestion, ['show', 'replaceWith']);
+            ensureType('Suggestion', suggestion, 'show', 'string');
+            ensureType('Suggestion', suggestion, 'replaceWith', 'string');
             suggestion.cursorPosition = suggestion.cursorPosition || [0, 0];
             if (suggestion.cursorPosition.constructor !== Array) {
                 suggestion.cursorPosition = [suggestion.cursorPosition, suggestion.cursorPosition];
             }
 
             if (!ignoreOn) {
-                Utilities.ensure('Suggestion', suggestion, 'on');
-                Utilities.ensureType('Suggestion', suggestion, 'on', 'string');
+                ensure('Suggestion', suggestion, 'on');
+                ensureType('Suggestion', suggestion, 'on', 'string');
                 suggestion.on = [].concat(suggestion.on);
             }
         }
@@ -164,7 +172,7 @@ function SuggestionList(options) {
         };
     }
 
-    Utilities.ensure('SuggestionList', options, 'values');
+    ensure('SuggestionList', options, 'values');
     if (typeof options.caseSensitive === 'undefined') {
         options.caseSensitive = true;
     }
@@ -272,7 +280,7 @@ var SuggestionDropdown = function () {
                 _this.dropdownContent.innerHTML += dropdownLinkHTML;
 
                 var dropdownLink = _this.dropdownContent.lastElementChild;
-                Utilities.data(dropdownLink, 'suggestion', suggestion);
+                data(dropdownLink, 'suggestion', suggestion);
 
                 dropdownLink.addEventListener('mouseenter', function () {
                     _this.getActive().classList.remove('active');
@@ -317,11 +325,11 @@ var SuggestionDropdown = function () {
     }, {
         key: 'getValue',
         value: function getValue(element) {
-            return Utilities.data(element || this.getActive(), 'suggestion');
+            return data(element || this.getActive(), 'suggestion');
         }
     }, {
-        key: 'next',
-        value: function next() {
+        key: 'selectNext',
+        value: function selectNext() {
             var activeLink = this.getActive();
             var nextLink = activeLink.nextElementSibling || this.dropdownContent.firstElementChild;
 
@@ -331,8 +339,8 @@ var SuggestionDropdown = function () {
             return this.getValue(nextLink);
         }
     }, {
-        key: 'prev',
-        value: function prev() {
+        key: 'selectPrev',
+        value: function selectPrev() {
             var activeLink = this.getActive();
             var prevLink = activeLink.prevElementSibling || this.dropdownContent.lastElementChild;
 
@@ -346,7 +354,7 @@ var SuggestionDropdown = function () {
 }();
 
 function getCaretPosition(element, cursorPosition) {
-    if (Utilities.data(element, 'isInput')) {
+    if (data(element, 'isInput')) {
         var originalValue = element.value;
         var value = originalValue.slice(0, cursorPosition);
 
@@ -361,15 +369,15 @@ function getCaretPosition(element, cursorPosition) {
         clone.id = 'autosuggest-positionclone';
 
         var positioner = document.createElement('span');
-        positioner.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(-1))));
+        positioner.appendChild(document.createTextNode(htmlEncode(value.slice(-1))));
 
-        clone.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(0, -1))));
+        clone.appendChild(document.createTextNode(htmlEncode(value.slice(0, -1))));
         clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(Utilities.htmlEncode(originalValue.slice(cursorPosition))));
-        Utilities.cloneStyle(element, clone);
+        clone.appendChild(document.createTextNode(htmlEncode(originalValue.slice(cursorPosition))));
+        cloneStyle(element, clone);
 
         //Get position of element and overlap our clone on the element
-        var elementPosition = Utilities.getGlobalOffset(element);
+        var elementPosition = getGlobalOffset(element);
 
         clone.style.opacity = 0;
         clone.style.position = 'absolute';
@@ -386,7 +394,7 @@ function getCaretPosition(element, cursorPosition) {
             if (cursorPosition === originalValue.length) {
                 clone.scrollLeft = clone.scrollWidth - clone.clientWidth;
             } else {
-                clone.scrollLeft = Math.min(Utilities.getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
+                clone.scrollLeft = Math.min(getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
             }
         } else {
             clone.style.maxWidth = '100%';
@@ -395,7 +403,7 @@ function getCaretPosition(element, cursorPosition) {
         }
 
         //Get position of span
-        var caretPosition = Utilities.getGlobalOffset(positioner);
+        var caretPosition = getGlobalOffset(positioner);
         caretPosition.left += 10 - clone.scrollLeft;
         caretPosition.top += 28 - clone.scrollTop;
         document.body.removeChild(clone);
@@ -413,7 +421,7 @@ var setValue = function setValue(_ref) {
     var insertText = suggestion.replaceWith;
 
     if (element) {
-        if (Utilities.data(element, 'isInput')) {
+        if (data(element, 'isInput')) {
             var originalValue = element.value;
             var value = originalValue.slice(0, cursorPosition);
             var currentValue = value.split(trigger || /\W/).pop();
@@ -450,11 +458,11 @@ var AutoSuggest = function () {
         for (var i = 0; i < this.suggestionLists.length; i++) {
             var suggestionList = this.suggestionLists[i];
             if (!(suggestionList instanceof SuggestionList)) {
-                if (!suggestionList.values) {
+                if (suggestionList.constructor === Array) {
                     suggestionList = { values: suggestionList };
                 }
 
-                if (typeof suggestionList.caseSensitive === 'undefined' && typeof options.caseSensitive !== 'undefined') {
+                if (!suggestionList.hasOwnProperty('caseSensitive') && options.hasOwnProperty('caseSensitive')) {
                     suggestionList.caseSensitive = options.caseSensitive;
                 }
 
@@ -464,47 +472,55 @@ var AutoSuggest = function () {
 
         events: {
             var self = this;
-            var activeElement = null;
             var activeSuggestionList = null;
             var activeElementCursorPosition = 0;
 
             this.onBlurHandler = function () {
-                activeElement = null;
                 self.dropdown.hide();
             };
 
-            this.onFocusHandler = function () {
-                activeElement = this;
-            };
-
-            this.onInputHandler = function () {
+            this.onKeyDownHandler = function (e) {
                 var _this = this;
 
+                if (self.dropdown.isActive) {
+                    var preventDefaultAction = function preventDefaultAction() {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                    };
+
+                    if (e.keyCode === 13 || e.keyCode === 9) {
+                        setValue({
+                            element: this,
+                            trigger: activeSuggestionList.trigger,
+                            cursorPosition: activeElementCursorPosition,
+                            suggestion: self.dropdown.getValue()
+                        });
+                        self.dropdown.hide();
+                        return preventDefaultAction();
+                    } else if (e.keyCode === 40) {
+                        self.dropdown.selectNext();
+                        return preventDefaultAction();
+                    } else if (e.keyCode === 38) {
+                        self.dropdown.selectPrev();
+                        return preventDefaultAction();
+                    } else if (e.keyCode === 27) {
+                        self.dropdown.hide();
+                        return preventDefaultAction();
+                    }
+                }
+
                 var value = this.value;
-
-                if (Utilities.data(this, 'isInput')) {
-                    var cursorPosition = Utilities.getCursorPosition(this);
-
+                if (data(this, 'isInput')) {
+                    var cursorPosition = getCursorPosition(this);
                     value = value.slice(0, cursorPosition);
                     activeElementCursorPosition = cursorPosition;
                 }
 
                 handleDropdown: {
                     (function () {
-                        var execute = function () {
-                            var i = 0;
-                            var queue = [];
-
-                            return function (f, j) {
-                                queue[j - i] = f;
-                                while (!!queue[0]) {
-                                    ++i, queue.shift()();
-                                }
-                            };
-                        }();
-
-                        var i = 0;
-                        var triggerMatchFound = false;
+                        var i = 0,
+                            triggerMatchFound = false;
+                        var execute = makeAsyncQueueRunner();
 
                         self.dropdown.empty();
 
@@ -569,29 +585,6 @@ var AutoSuggest = function () {
                     })();
                 }
             };
-
-            this.onKeyDownHandler = function (e) {
-                if (self.dropdown.isActive) {
-                    var newValue = void 0;
-                    if (e.keyCode === 13 || e.keyCode === 9) {
-                        setValue({
-                            element: this,
-                            trigger: activeSuggestionList.trigger,
-                            cursorPosition: activeElementCursorPosition,
-                            suggestion: self.dropdown.getValue()
-                        });
-                        self.dropdown.hide();
-                    } else if (e.keyCode == 40) {
-                        newValue = self.dropdown.next();
-                    } else if (e.keyCode == 38) {
-                        newValue = self.dropdown.prev();
-                    } else {
-                        return true;
-                    }
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                }
-            };
         }
 
         // initialize events on inputs
@@ -619,21 +612,18 @@ var AutoSuggest = function () {
             inputs.forEach(function (input) {
                 // validate element
                 if (input.isContentEditable) {
-                    Utilities.data(input, 'isInput', false);
+                    data(input, 'isInput', false);
                 } else if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT' && input.type === 'text') {
-                    Utilities.data(input, 'isInput', true);
+                    data(input, 'isInput', true);
                 } else {
                     throw new Error('AutoSuggest: Invalid input: only input[type = text], textarea and contenteditable elements are supported');
                 }
 
                 // init events
                 input.addEventListener('blur', _this2.onBlurHandler);
-                input.addEventListener('focus', _this2.onFocusHandler);
+                input.addEventListener('keydown', _this2.onKeyDownHandler, true);
 
-                input.addEventListener('input', _this2.onInputHandler);
-                input.addEventListener('keydown', _this2.onKeyDownHandler);
-
-                Utilities.data(input, 'index', _this2.inputs.push(input) - 1);
+                data(input, 'index', _this2.inputs.push(input) - 1);
             });
         }
     }, {
@@ -650,16 +640,13 @@ var AutoSuggest = function () {
             }));
 
             inputs.forEach(function (input) {
-                var index = Utilities.data(input, 'index');
+                var index = data(input, 'index');
                 if (!isNaN(index)) {
-                    _this3.inputs.slice(index, 1);
+                    _this3.inputs.splice(index, 1);
 
                     // destroy events
                     input.removeEventListener('blur', _this3.onBlurHandler);
-                    input.removeEventListener('focus', _this3.onFocusHandler);
-
-                    input.removeEventListener('input', _this3.onInputHandler);
-                    input.removeEventListener('keydown', _this3.onKeyDownHandler);
+                    input.removeEventListener('keydown', _this3.onKeyDownHandler, true);
                 }
             });
         }

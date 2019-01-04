@@ -1,9 +1,16 @@
-import Utilities from './Utilities';
+import {
+    data, cloneStyle, htmlEncode,
+    getGlobalOffset,
+    getCursorPosition,
+    getScrollLeftForInput,
+    makeAsyncQueueRunner
+} from './Utilities';
+
 import SuggestionList from './SuggestionList';
 import SuggestionDropdown from './SuggestionDropdown';
 
 function getCaretPosition(element, cursorPosition) {
-    if (Utilities.data(element, 'isInput')) {
+    if (data(element, 'isInput')) {
         const originalValue = element.value;
         const value = originalValue.slice(0, cursorPosition);
 
@@ -18,15 +25,15 @@ function getCaretPosition(element, cursorPosition) {
         clone.id = 'autosuggest-positionclone';
 
         const positioner = document.createElement('span');
-        positioner.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(-1))));
+        positioner.appendChild(document.createTextNode(htmlEncode(value.slice(-1))));
 
-        clone.appendChild(document.createTextNode(Utilities.htmlEncode(value.slice(0, -1))));
+        clone.appendChild(document.createTextNode(htmlEncode(value.slice(0, -1))));
         clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(Utilities.htmlEncode(originalValue.slice(cursorPosition))));
-        Utilities.cloneStyle(element, clone);
+        clone.appendChild(document.createTextNode(htmlEncode(originalValue.slice(cursorPosition))));
+        cloneStyle(element, clone);
 
         //Get position of element and overlap our clone on the element
-        const elementPosition = Utilities.getGlobalOffset(element);
+        const elementPosition = getGlobalOffset(element);
 
         clone.style.opacity = 0;
         clone.style.position = 'absolute';
@@ -43,7 +50,7 @@ function getCaretPosition(element, cursorPosition) {
             if (cursorPosition === originalValue.length) {
                 clone.scrollLeft = clone.scrollWidth - clone.clientWidth;
             } else {
-                clone.scrollLeft = Math.min(Utilities.getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
+                clone.scrollLeft = Math.min(getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
             }
         } else {
             clone.style.maxWidth = '100%';
@@ -52,7 +59,7 @@ function getCaretPosition(element, cursorPosition) {
         }
 
         //Get position of span
-        const caretPosition = Utilities.getGlobalOffset(positioner);
+        const caretPosition = getGlobalOffset(positioner);
         caretPosition.left += 10 - clone.scrollLeft;
         caretPosition.top += 28 - clone.scrollTop;
         document.body.removeChild(clone);
@@ -65,7 +72,7 @@ const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
     const insertText = suggestion.replaceWith;
 
     if (element) {
-        if (Utilities.data(element, 'isInput')) {
+        if (data(element, 'isInput')) {
             const originalValue = element.value;
             let value = originalValue.slice(0, cursorPosition);
             const currentValue = value.split(trigger || /\W/).pop();
@@ -100,11 +107,11 @@ class AutoSuggest {
         for (let i = 0; i < this.suggestionLists.length; i++) {
             let suggestionList = this.suggestionLists[i];
             if (!(suggestionList instanceof SuggestionList)) {
-                if (!suggestionList.values) {
+                if (suggestionList.constructor === Array) {
                     suggestionList = { values: suggestionList };
                 }
 
-                if (typeof suggestionList.caseSensitive === 'undefined' && typeof options.caseSensitive !== 'undefined') {
+                if (!suggestionList.hasOwnProperty('caseSensitive') && options.hasOwnProperty('caseSensitive')) {
                     suggestionList.caseSensitive = options.caseSensitive;
                 }
 
@@ -114,43 +121,51 @@ class AutoSuggest {
 
         events: {
             const self = this;
-            let activeElement = null;
             let activeSuggestionList = null;
             let activeElementCursorPosition = 0;
 
-
             this.onBlurHandler = function() {
-                activeElement = null;
                 self.dropdown.hide();
             };
 
-            this.onFocusHandler = function() {
-                activeElement = this;
-            };
+            this.onKeyDownHandler = function(e) {
+                if (self.dropdown.isActive) {
+                    const preventDefaultAction = () => {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                    };
 
-            this.onInputHandler = function() {
+                    if (e.keyCode === 13 || e.keyCode === 9) {
+                        setValue({
+                            element: this,
+                            trigger: activeSuggestionList.trigger,
+                            cursorPosition: activeElementCursorPosition,
+                            suggestion: self.dropdown.getValue()
+                        });
+                        self.dropdown.hide();
+                        return preventDefaultAction();
+                    } else if (e.keyCode === 40) {
+                        self.dropdown.selectNext();
+                        return preventDefaultAction();
+                    } else if (e.keyCode === 38) {
+                        self.dropdown.selectPrev();
+                        return preventDefaultAction();
+                    } else if (e.keyCode === 27) {
+                        self.dropdown.hide();
+                        return preventDefaultAction();
+                    }
+                }
+
                 let value = this.value;
-
-                if (Utilities.data(this, 'isInput')) {
-                    const cursorPosition = Utilities.getCursorPosition(this);
-
+                if (data(this, 'isInput')) {
+                    const cursorPosition = getCursorPosition(this);
                     value = value.slice(0, cursorPosition);
                     activeElementCursorPosition = cursorPosition;
                 }
 
                 handleDropdown: {
-                    const execute = (() => {
-                        let i = 0;
-                        const queue = [];
-
-                        return (f, j) => {
-                            queue[j - i] = f;
-                            while (!!queue[0]) ++i, queue.shift()();
-                        };
-                    })();
-
-                    let i = 0;
-                    let triggerMatchFound = false;
+                    let i = 0, triggerMatchFound = false;
+                    const execute = makeAsyncQueueRunner();
 
                     self.dropdown.empty();
                     for (let suggestionList of self.suggestionLists) {
@@ -188,29 +203,6 @@ class AutoSuggest {
                     }
                 }
             };
-
-            this.onKeyDownHandler = function(e) {
-                if (self.dropdown.isActive) {
-                    let newValue;
-                    if (e.keyCode === 13 || e.keyCode === 9) {
-                        setValue({
-                            element: this,
-                            trigger: activeSuggestionList.trigger,
-                            cursorPosition: activeElementCursorPosition,
-                            suggestion: self.dropdown.getValue()
-                        });
-                        self.dropdown.hide();
-                    } else if (e.keyCode == 40) {
-                        newValue = self.dropdown.next();
-                    } else if (e.keyCode == 38) {
-                        newValue = self.dropdown.prev();
-                    } else {
-                        return true;
-                    }
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                }
-            };
         }
 
         // initialize events on inputs
@@ -223,21 +215,18 @@ class AutoSuggest {
         inputs.forEach(input => {
             // validate element
             if (input.isContentEditable) {
-                Utilities.data(input, 'isInput', false)
+                data(input, 'isInput', false)
             } else if (input.tagName === 'TEXTAREA' || (input.tagName === 'INPUT' && input.type === 'text')) {
-                Utilities.data(input, 'isInput', true)
+                data(input, 'isInput', true)
             } else {
                 throw new Error('AutoSuggest: Invalid input: only input[type = text], textarea and contenteditable elements are supported');
             }
 
             // init events
             input.addEventListener('blur', this.onBlurHandler);
-            input.addEventListener('focus', this.onFocusHandler);
+            input.addEventListener('keydown', this.onKeyDownHandler, true);
 
-            input.addEventListener('input', this.onInputHandler);
-            input.addEventListener('keydown', this.onKeyDownHandler);
-
-            Utilities.data(input, 'index', this.inputs.push(input) - 1);
+            data(input, 'index', this.inputs.push(input) - 1);
         });
     }
 
@@ -245,16 +234,13 @@ class AutoSuggest {
         const inputs = Array.prototype.concat.apply([], args.map(d => d[0] ? Array.prototype.slice.call(d, 0) : d));
 
         inputs.forEach(input => {
-            const index = Utilities.data(input, 'index');
+            const index = data(input, 'index');
             if (!isNaN(index)) {
-                this.inputs.slice(index, 1);
+                this.inputs.splice(index, 1);
 
                 // destroy events
                 input.removeEventListener('blur', this.onBlurHandler);
-                input.removeEventListener('focus', this.onFocusHandler);
-
-                input.removeEventListener('input', this.onInputHandler);
-                input.removeEventListener('keydown', this.onKeyDownHandler);
+                input.removeEventListener('keydown', this.onKeyDownHandler, true);
             }
         });
     }

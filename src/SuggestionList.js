@@ -1,4 +1,4 @@
-import Utilities from './Utilities';
+import { ensure, ensureType } from './Utilities';
 
 function validateSuggestions (suggestions, ignoreOn) {
     return [].concat(suggestions).map(suggestion => {
@@ -14,17 +14,17 @@ function validateSuggestions (suggestions, ignoreOn) {
                 suggestion.on = [suggestion.show];
             }
         } else if (type === 'object') {
-            Utilities.ensure('Suggestion', suggestion, ['show', 'replaceWith']);
-            Utilities.ensureType('Suggestion', suggestion, 'show', 'string');
-            Utilities.ensureType('Suggestion', suggestion, 'replaceWith', 'string');
+            ensure('Suggestion', suggestion, ['show', 'replaceWith']);
+            ensureType('Suggestion', suggestion, 'show', 'string');
+            ensureType('Suggestion', suggestion, 'replaceWith', 'string');
             suggestion.cursorPosition = suggestion.cursorPosition || [0, 0];
             if (suggestion.cursorPosition.constructor !== Array) {
                 suggestion.cursorPosition = [suggestion.cursorPosition, suggestion.cursorPosition];
             }
 
             if (!ignoreOn) {
-                Utilities.ensure('Suggestion', suggestion, 'on');
-                Utilities.ensureType('Suggestion', suggestion, 'on', 'string');
+                ensure('Suggestion', suggestion, 'on');
+                ensureType('Suggestion', suggestion, 'on', 'string');
                 suggestion.on = [].concat(suggestion.on);
             }
         }
@@ -40,7 +40,7 @@ function SuggestionList(options) {
         };
     }
 
-    Utilities.ensure('SuggestionList', options, 'values');
+    ensure('SuggestionList', options, 'values');
     if (typeof options.caseSensitive === 'undefined') {
         options.caseSensitive = true;
     }

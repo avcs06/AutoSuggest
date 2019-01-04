@@ -1,77 +1,82 @@
-const Utilities = {
-    noop: () => {},
-    noopd: data => data,
+export const htmlEncode = value =>
+    String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-    ensure: (context, object, keys) => {
-        [].concat(keys).forEach(key => {
-            if (typeof object[key] === 'undefined') {
-                throw new Error(`AutoSuggest: Missing required parameter, ${context}.${key}`);
-            }
-        });
-    },
-    ensureType: (context, object, key, type) => {
-        [].concat(object[key]).forEach(value => {
-            if (typeof value !== type) {
-                throw new Error(`AutoSuggest: Invalid Type for ${context}.${key}, expected ${type}`);
-            }
-        });
-    },
-
-    cloneStyle: (element1, element2) => {
-        const style1 = window.getComputedStyle($(element1)[0], null);
-        const style2 = {};
-
-        Array.prototype.forEach.call(style1, property => {
-            style2[property] = style1.getPropertyValue(property);
-        });
-        $(element2).css(style2);
-    },
-    getGlobalOffset: element => {
-        let obj = element;
-        let left = 0;
-        let top = 0;
-        do {
-            left += obj.offsetLeft;
-            top += obj.offsetTop;
-        } while (obj = obj.offsetParent);
-        return {left, top};
-    },
-    getScrollLeftForInput: element => {
-        if(element.createTextRange) {
-            const range = element.createTextRange();
-            const inputStyle = window.getComputedStyle(element, undefined);
-            const paddingLeft = parseFloat(inputStyle.paddingLeft);
-            const rangeRect = range.getBoundingClientRect();
-            return element.getBoundingClientRect().left + element.clientLeft + paddingLeft - rangeRect.left;
-        } else {
-            return $(element).scrollLeft();
+export const ensure = (context, object, keys) => {
+    [].concat(keys).forEach(key => {
+        if (typeof object[key] === 'undefined') {
+            throw new Error(`AutoSuggest: Missing required parameter, ${context}.${key}`);
         }
-    },
-    getCursorPosition: input => {
-        let position = 0;
-
-        if (typeof input.selectionDirection !== 'undefined') {
-            position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
-        } else if (document.selection) {
-            input.focus();
-            const selection = document.selection.createRange();
-            selection.moveStart('character', - input.value.length);
-            position = selection.text.length;
+    });
+};
+export const ensureType = (context, object, key, type) => {
+    [].concat(object[key]).forEach(value => {
+        if (typeof value !== type) {
+            throw new Error(`AutoSuggest: Invalid Type for ${context}.${key}, expected ${type}`);
         }
+    });
+};
 
-        return position;
-    },
-
-    htmlEncode: value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
-    data: (element, key, value) => {
-        key = 'autosuggest_' + key;
-        if (typeof value !== 'undefined') {
-            element.dataset[key] = JSON.stringify(value);
-        } else {
-            value = element.dataset[key];
-            return typeof value !== 'undefined' ? JSON.parse(element.dataset[key]) : value;
+export const cloneStyle = (element1, element2) => {
+    const allStyles = window.getComputedStyle(element1);
+    for (let style in allStyles) {
+        if (allStyles.hasOwnProperty(style)) {
+            element2.style.setProperty(style, allStyles[style]);
         }
     }
 };
+export const getGlobalOffset = $0 => {
+    let node = $0, top = 0, left = 0;
 
-export default Utilities;
+    do {
+        left += node.offsetLeft;
+        top += node.offsetTop;
+    } while (node = node.offsetParent);
+
+    return {left, top};
+};
+
+export const getScrollLeftForInput = element => {
+    if(element.createTextRange) {
+        const range = element.createTextRange();
+        const inputStyle = window.getComputedStyle(element);
+        const paddingLeft = parseFloat(inputStyle.paddingLeft);
+        const rangeRect = range.getBoundingClientRect();
+        return element.getBoundingClientRect().left + element.clientLeft + paddingLeft - rangeRect.left;
+    } else {
+        return element.scrollLeft;
+    }
+};
+export const getCursorPosition = input => {
+    let position = 0;
+
+    if (typeof input.selectionDirection !== 'undefined') {
+        position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
+    } else if (document.selection) {
+        input.focus();
+        const selection = document.selection.createRange();
+        selection.moveStart('character', - input.value.length);
+        position = selection.text.length;
+    }
+
+    return position;
+};
+
+export const makeAsyncQueueRunner = () => {
+    let i = 0;
+    const queue = [];
+
+    return (f, j) => {
+        queue[j - i] = f;
+        while (queue[0]) ++i, queue.shift()();
+    };
+};
+
+export const data = (element, key, value) => {
+    key = 'autosuggest_' + key;
+    if (typeof value !== 'undefined') {
+        element.dataset[key] = JSON.stringify(value);
+    } else {
+        value = element.dataset[key];
+        return typeof value !== 'undefined' ? JSON.parse(element.dataset[key]) : value;
+    }
+};
