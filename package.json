@@ -1,6 +1,6 @@
 {
-  "name": "suggest",
-  "version": "1.0.0-beta",
+  "name": "@avcs/autosuggest",
+  "version": "1.0.1-beta",
   "description": "Suggestion manager for input fields",
   "main": "lib/AutoSuggest.js",
   "repository": "git@github.com:avcs06/autosuggest.git",
