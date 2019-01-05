@@ -207,7 +207,7 @@ function SuggestionList(options) {
 
     if (trigger) {
         var escapedTrigger = '\\' + trigger.split('').join('\\');
-        this.regex = new RegExp('(?:^|[^' + escapedTrigger + ']+)' + escapedTrigger + '(\\S*)$');
+        this.regex = new RegExp('(?:^|[^' + escapedTrigger + ']+?)' + escapedTrigger + '(\\S*)$');
     } else {
         this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
     }
@@ -342,7 +342,7 @@ var SuggestionDropdown = function () {
         key: 'selectPrev',
         value: function selectPrev() {
             var activeLink = this.getActive();
-            var prevLink = activeLink.prevElementSibling || this.dropdownContent.lastElementChild;
+            var prevLink = activeLink.previousElementSibling || this.dropdownContent.lastElementChild;
 
             activeLink.classList.remove('active');
             prevLink.classList.add('active');
@@ -398,8 +398,8 @@ function getCaretPosition(element, cursorPosition) {
             }
         } else {
             clone.style.maxWidth = '100%';
-            clone.scrollTop = element.scrollTop();
-            clone.scrollLeft = element.scrollLeft();
+            clone.scrollTop = element.scrollTop;
+            clone.scrollLeft = element.scrollLeft;
         }
 
         //Get position of span
@@ -458,7 +458,7 @@ var AutoSuggest = function () {
         for (var i = 0; i < this.suggestionLists.length; i++) {
             var suggestionList = this.suggestionLists[i];
             if (!(suggestionList instanceof SuggestionList)) {
-                if (suggestionList.constructor === Array) {
+                if (suggestionList.constructor !== Object) {
                     suggestionList = { values: suggestionList };
                 }
 
@@ -474,18 +474,18 @@ var AutoSuggest = function () {
             var self = this;
             var activeSuggestionList = null;
             var activeElementCursorPosition = 0;
+            var handledInKeyDown = false;
 
             this.onBlurHandler = function () {
                 self.dropdown.hide();
             };
 
             this.onKeyDownHandler = function (e) {
-                var _this = this;
-
+                handledInKeyDown = false;
                 if (self.dropdown.isActive) {
                     var preventDefaultAction = function preventDefaultAction() {
                         e.preventDefault();
-                        e.stopImmediatePropagation();
+                        handledInKeyDown = true;
                     };
 
                     if (e.keyCode === 13 || e.keyCode === 9) {
@@ -508,6 +508,14 @@ var AutoSuggest = function () {
                         return preventDefaultAction();
                     }
                 }
+            };
+
+            this.onKeyUpHandler = function (e) {
+                var _this = this;
+
+                if (handledInKeyDown) {
+                    return;
+                }
 
                 var value = this.value;
                 if (data(this, 'isInput')) {
@@ -527,14 +535,15 @@ var AutoSuggest = function () {
                         var _loop = function _loop(_suggestionList) {
                             if (_suggestionList.regex.test(value)) {
                                 triggerMatchFound = true;
-                                activeSuggestionList = _suggestionList;
 
-                                var match = value.match(_suggestionList.regex)[1];
                                 (function (i) {
+                                    var match = value.match(_suggestionList.regex)[1];
                                     _suggestionList.getSuggestions(match, function (results) {
                                         execute(function () {
                                             if (self.dropdown.isEmpty) {
                                                 if (results.length) {
+                                                    activeSuggestionList = _suggestionList;
+
                                                     self.dropdown.fill(results, function (suggestion) {
                                                         setValue({
                                                             element: _this,
@@ -543,7 +552,9 @@ var AutoSuggest = function () {
                                                             suggestion: suggestion
                                                         });
                                                     });
-                                                    self.dropdown.show(getCaretPosition(_this, activeElementCursorPosition));
+
+                                                    var caretPosition = getCaretPosition(_this, activeElementCursorPosition);
+                                                    self.dropdown.show(caretPosition);
                                                 } else {
                                                     self.dropdown.hide();
                                                 }
@@ -621,6 +632,7 @@ var AutoSuggest = function () {
 
                 // init events
                 input.addEventListener('blur', _this2.onBlurHandler);
+                input.addEventListener('keyup', _this2.onKeyUpHandler);
                 input.addEventListener('keydown', _this2.onKeyDownHandler, true);
 
                 data(input, 'index', _this2.inputs.push(input) - 1);
@@ -646,6 +658,7 @@ var AutoSuggest = function () {
 
                     // destroy events
                     input.removeEventListener('blur', _this3.onBlurHandler);
+                    input.removeEventListener('keyup', _this3.onKeyUpHandler);
                     input.removeEventListener('keydown', _this3.onKeyDownHandler, true);
                 }
             });

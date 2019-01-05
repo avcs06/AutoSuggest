@@ -113,7 +113,7 @@ class SuggestionDropdown {
 
     selectPrev() {
         const activeLink = this.getActive();
-        const prevLink = activeLink.prevElementSibling || this.dropdownContent.lastElementChild;
+        const prevLink = activeLink.previousElementSibling || this.dropdownContent.lastElementChild;
 
         activeLink.classList.remove('active');
         prevLink.classList.add('active');

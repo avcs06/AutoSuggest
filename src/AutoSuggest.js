@@ -54,8 +54,8 @@ function getCaretPosition(element, cursorPosition) {
             }
         } else {
             clone.style.maxWidth = '100%';
-            clone.scrollTop = element.scrollTop();
-            clone.scrollLeft = element.scrollLeft();
+            clone.scrollTop = element.scrollTop;
+            clone.scrollLeft = element.scrollLeft;
         }
 
         //Get position of span
@@ -107,7 +107,7 @@ class AutoSuggest {
         for (let i = 0; i < this.suggestionLists.length; i++) {
             let suggestionList = this.suggestionLists[i];
             if (!(suggestionList instanceof SuggestionList)) {
-                if (suggestionList.constructor === Array) {
+                if (suggestionList.constructor !== Object) {
                     suggestionList = { values: suggestionList };
                 }
 
@@ -123,16 +123,18 @@ class AutoSuggest {
             const self = this;
             let activeSuggestionList = null;
             let activeElementCursorPosition = 0;
+            let handledInKeyDown = false;
 
             this.onBlurHandler = function() {
                 self.dropdown.hide();
             };
 
             this.onKeyDownHandler = function(e) {
+                handledInKeyDown = false;
                 if (self.dropdown.isActive) {
                     const preventDefaultAction = () => {
                         e.preventDefault();
-                        e.stopImmediatePropagation();
+                        handledInKeyDown = true;
                     };
 
                     if (e.keyCode === 13 || e.keyCode === 9) {
@@ -155,6 +157,12 @@ class AutoSuggest {
                         return preventDefaultAction();
                     }
                 }
+            };
+
+            this.onKeyUpHandler = function(e) {
+                if (handledInKeyDown) {
+                    return;
+                }
 
                 let value = this.value;
                 if (data(this, 'isInput')) {
@@ -171,14 +179,15 @@ class AutoSuggest {
                     for (let suggestionList of self.suggestionLists) {
                         if (suggestionList.regex.test(value)) {
                             triggerMatchFound = true;
-                            activeSuggestionList = suggestionList;
 
-                            const match = value.match(suggestionList.regex)[1];
                             (i => {
+                                const match = value.match(suggestionList.regex)[1];
                                 suggestionList.getSuggestions(match, results => {
                                     execute(() => {
                                         if (self.dropdown.isEmpty) {
                                             if (results.length) {
+                                                activeSuggestionList = suggestionList;
+
                                                 self.dropdown.fill(results, suggestion => {
                                                     setValue({
                                                         element: this,
@@ -187,7 +196,9 @@ class AutoSuggest {
                                                         suggestion: suggestion,
                                                     });
                                                 });
-                                                self.dropdown.show(getCaretPosition(this, activeElementCursorPosition));
+
+                                                const caretPosition = getCaretPosition(this, activeElementCursorPosition);
+                                                self.dropdown.show(caretPosition);
                                             } else {
                                                 self.dropdown.hide();
                                             }
@@ -224,6 +235,7 @@ class AutoSuggest {
 
             // init events
             input.addEventListener('blur', this.onBlurHandler);
+            input.addEventListener('keyup', this.onKeyUpHandler);
             input.addEventListener('keydown', this.onKeyDownHandler, true);
 
             data(input, 'index', this.inputs.push(input) - 1);
@@ -240,6 +252,7 @@ class AutoSuggest {
 
                 // destroy events
                 input.removeEventListener('blur', this.onBlurHandler);
+                input.removeEventListener('keyup', this.onKeyUpHandler);
                 input.removeEventListener('keydown', this.onKeyDownHandler, true);
             }
         });
