@@ -9,6 +9,21 @@ import {
 import SuggestionList from './SuggestionList';
 import SuggestionDropdown from './SuggestionDropdown';
 
+function getContainerTextNode(range) {
+    let cursorPosition = range.startOffset;
+    let containerTextNode = range.startContainer;
+
+    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+        cursorPosition = 0;
+        containerTextNode = containerTextNode.childNodes[range.startOffset];
+        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+            containerTextNode = containerTextNode.firstChild;
+        }
+    }
+
+    return { cursorPosition, containerTextNode };
+}
+
 function getCaretPosition(element, cursorPosition) {
     if (data(element, 'isInput')) {
         const originalValue = element.value;
@@ -60,31 +75,89 @@ function getCaretPosition(element, cursorPosition) {
         document.body.removeChild(clone);
 
         return caretPosition;
+    } else {
+        //Invisible character
+        const markerTextChar = "\ufeff";
+        //Get the content after last trigger for showing matched results in dropdown
+        const selection = window.getSelection().getRangeAt(0);
+
+        const { cursorPosition, containerTextNode } = getContainerTextNode(selection);
+        if (!containerTextNode) {
+            return null;
+        }
+
+        const parentNode = containerTextNode.parentNode;
+        const referenceNode = containerTextNode.nextSibling;
+        const remainingText = containerTextNode.nodeValue.slice(cursorPosition);
+        containerTextNode.nodeValue = containerTextNode.nodeValue.slice(0, cursorPosition);
+
+        // Create the marker element containing invisible character using DOM methods and insert it
+        const markerElement = document.createElement("span");
+        markerElement.appendChild(document.createTextNode(markerTextChar));
+        parentNode.insertBefore(markerElement, referenceNode);
+
+        if (remainingText) {
+            const remainingTextNode = document.createTextNode(remainingText);
+            parentNode.insertBefore(remainingTextNode, referenceNode);
+        }
+
+        // Find markerEl position
+        const caretPosition = getGlobalOffset(markerElement);
+        caretPosition.left += 10;
+        caretPosition.top += 28;
+
+        parentNode.removeChild(markerElement);
+        parentNode.normalize();
+
+        selection.setStart(containerTextNode, cursorPosition);
+        selection.collapse(true);
+
+        return caretPosition;
     }
 }
 
 const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
     const insertText = suggestion.replaceWith;
 
-    if (element) {
-        if (data(element, 'isInput')) {
-            const originalValue = element.value;
-            let value = originalValue.slice(0, cursorPosition);
-            const currentValue = value.split(trigger || /\W/).pop();
+    if (data(element, 'isInput')) {
+        const originalValue = element.value;
+        let value = originalValue.slice(0, cursorPosition);
+        const currentValue = value.split(trigger || /\W/).pop();
 
-            value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
-            const cursorStartPosition = value.length;
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
+        element.value = value + insertText + originalValue.slice(cursorPosition);
+        element.focus();
 
-            element.value = value + insertText + originalValue.slice(cursorPosition);
-            element.focus();
+        const cursorStartPosition = value.length;
+        const newCursorPositions = suggestion.cursorPosition;
+        const newPosition = cursorStartPosition + insertText.length;
+        const newPosition1 = newPosition + newCursorPositions[0];
+        const newPosition2 = newPosition + newCursorPositions[1];
 
-            const newCursorPositions = suggestion.cursorPosition;
-            const newPosition = cursorStartPosition + insertText.length;
-            const newPosition1 = newPosition + newCursorPositions[0];
-            const newPosition2 = newPosition + newCursorPositions[1];
-
-            element.setSelectionRange(newPosition1, newPosition2);
+        element.setSelectionRange(newPosition1, newPosition2);
+    } else {
+        const selection = window.getSelection().getRangeAt(0);
+        const { cursorPosition, containerTextNode } = getContainerTextNode(selection);
+        if (!containerTextNode) {
+            return null;
         }
+
+        const parentNode = containerTextNode.parentNode;
+        const originalValue = containerTextNode.nodeValue;
+        let value = originalValue.slice(0, cursorPosition);
+        const currentValue = value.split(trigger || /\W/).pop();
+
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
+        containerTextNode.nodeValue = value + insertText + originalValue.slice(cursorPosition);
+
+        const cursorStartPosition = value.length;
+        const newCursorPositions = suggestion.cursorPosition;
+        const newPosition = cursorStartPosition + insertText.length;
+        const newPosition1 = newPosition + newCursorPositions[0];
+        const newPosition2 = newPosition + newCursorPositions[1];
+
+        selection.setStart(containerTextNode, newPosition1);
+        selection.setEnd(containerTextNode, newPosition2);
     }
 };
 
@@ -155,16 +228,24 @@ class AutoSuggest {
             };
 
             this.onKeyUpHandler = function(e) {
-                if (handledInKeyDown) {
-                    return;
-                }
+                const selection = window.getSelection();
+                if (handledInKeyDown || !selection.isCollapsed) return;
 
-                let value = this.value;
+                let value;
                 if (data(this, 'isInput')) {
                     const cursorPosition = getCursorPosition(this);
-                    value = value.slice(0, cursorPosition);
+                    value = this.value.slice(0, cursorPosition);
+                    activeElementCursorPosition = cursorPosition;
+                } else {
+                    const range = selection.getRangeAt(0);
+                    const { cursorPosition, containerTextNode } = getContainerTextNode(range);
+                    if (!containerTextNode) return;
+                    value = containerTextNode.nodeValue.slice(0, cursorPosition);
                     activeElementCursorPosition = cursorPosition;
                 }
+
+                const caretPosition = getCaretPosition(this, activeElementCursorPosition);
+                if (!caretPosition) return;
 
                 handleDropdown: {
                     let i = 0, triggerMatchFound = false;
@@ -192,7 +273,6 @@ class AutoSuggest {
                                                     });
                                                 });
 
-                                                const caretPosition = getCaretPosition(this, activeElementCursorPosition);
                                                 self.dropdown.show(caretPosition);
                                             } else {
                                                 self.dropdown.hide();

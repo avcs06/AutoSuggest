@@ -1,6 +1,3 @@
-export const htmlEncode = value =>
-    String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
 export const ensure = (context, object, keys) => {
     [].concat(keys).forEach(key => {
         if (typeof object[key] === 'undefined') {

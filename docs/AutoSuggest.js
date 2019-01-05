@@ -349,6 +349,21 @@ var SuggestionDropdown = function () {
     return SuggestionDropdown;
 }();
 
+function getContainerTextNode(range) {
+    var cursorPosition = range.startOffset;
+    var containerTextNode = range.startContainer;
+
+    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+        cursorPosition = 0;
+        containerTextNode = containerTextNode.childNodes[range.startOffset];
+        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+            containerTextNode = containerTextNode.firstChild;
+        }
+    }
+
+    return { cursorPosition: cursorPosition, containerTextNode: containerTextNode };
+}
+
 function getCaretPosition(element, cursorPosition) {
     if (data(element, 'isInput')) {
         var originalValue = element.value;
@@ -400,6 +415,47 @@ function getCaretPosition(element, cursorPosition) {
         document.body.removeChild(clone);
 
         return caretPosition;
+    } else {
+        //Invisible character
+        var markerTextChar = '\uFEFF';
+        //Get the content after last trigger for showing matched results in dropdown
+        var selection = window.getSelection().getRangeAt(0);
+
+        var _getContainerTextNode = getContainerTextNode(selection),
+            _cursorPosition = _getContainerTextNode.cursorPosition,
+            containerTextNode = _getContainerTextNode.containerTextNode;
+
+        if (!containerTextNode) {
+            return null;
+        }
+
+        var parentNode = containerTextNode.parentNode;
+        var referenceNode = containerTextNode.nextSibling;
+        var remainingText = containerTextNode.nodeValue.slice(_cursorPosition);
+        containerTextNode.nodeValue = containerTextNode.nodeValue.slice(0, _cursorPosition);
+
+        // Create the marker element containing invisible character using DOM methods and insert it
+        var markerElement = document.createElement("span");
+        markerElement.appendChild(document.createTextNode(markerTextChar));
+        parentNode.insertBefore(markerElement, referenceNode);
+
+        if (remainingText) {
+            var remainingTextNode = document.createTextNode(remainingText);
+            parentNode.insertBefore(remainingTextNode, referenceNode);
+        }
+
+        // Find markerEl position
+        var _caretPosition = getGlobalOffset(markerElement);
+        _caretPosition.left += 10;
+        _caretPosition.top += 28;
+
+        parentNode.removeChild(markerElement);
+        parentNode.normalize();
+
+        selection.setStart(containerTextNode, _cursorPosition);
+        selection.collapse(true);
+
+        return _caretPosition;
     }
 }
 
@@ -411,25 +467,49 @@ var setValue = function setValue(_ref) {
 
     var insertText = suggestion.replaceWith;
 
-    if (element) {
-        if (data(element, 'isInput')) {
-            var originalValue = element.value;
-            var value = originalValue.slice(0, cursorPosition);
-            var currentValue = value.split(trigger || /\W/).pop();
+    if (data(element, 'isInput')) {
+        var originalValue = element.value;
+        var value = originalValue.slice(0, cursorPosition);
+        var currentValue = value.split(trigger || /\W/).pop();
 
-            value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
-            var cursorStartPosition = value.length;
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
+        element.value = value + insertText + originalValue.slice(cursorPosition);
+        element.focus();
 
-            element.value = value + insertText + originalValue.slice(cursorPosition);
-            element.focus();
+        var cursorStartPosition = value.length;
+        var newCursorPositions = suggestion.cursorPosition;
+        var newPosition = cursorStartPosition + insertText.length;
+        var newPosition1 = newPosition + newCursorPositions[0];
+        var newPosition2 = newPosition + newCursorPositions[1];
 
-            var newCursorPositions = suggestion.cursorPosition;
-            var newPosition = cursorStartPosition + insertText.length;
-            var newPosition1 = newPosition + newCursorPositions[0];
-            var newPosition2 = newPosition + newCursorPositions[1];
+        element.setSelectionRange(newPosition1, newPosition2);
+    } else {
+        var selection = window.getSelection().getRangeAt(0);
 
-            element.setSelectionRange(newPosition1, newPosition2);
+        var _getContainerTextNode2 = getContainerTextNode(selection),
+            _cursorPosition2 = _getContainerTextNode2.cursorPosition,
+            containerTextNode = _getContainerTextNode2.containerTextNode;
+
+        if (!containerTextNode) {
+            return null;
         }
+
+        var parentNode = containerTextNode.parentNode;
+        var _originalValue = containerTextNode.nodeValue;
+        var _value = _originalValue.slice(0, _cursorPosition2);
+        var _currentValue = _value.split(trigger || /\W/).pop();
+
+        _value = _value.slice(0, 0 - _currentValue.length - (trigger || '').length);
+        containerTextNode.nodeValue = _value + insertText + _originalValue.slice(_cursorPosition2);
+
+        var _cursorStartPosition = _value.length;
+        var _newCursorPositions = suggestion.cursorPosition;
+        var _newPosition = _cursorStartPosition + insertText.length;
+        var _newPosition2 = _newPosition + _newCursorPositions[0];
+        var _newPosition3 = _newPosition + _newCursorPositions[1];
+
+        selection.setStart(containerTextNode, _newPosition2);
+        selection.setEnd(containerTextNode, _newPosition3);
     }
 };
 
@@ -504,16 +584,28 @@ var AutoSuggest = function () {
             this.onKeyUpHandler = function (e) {
                 var _this = this;
 
-                if (handledInKeyDown) {
-                    return;
-                }
+                var selection = window.getSelection();
+                if (handledInKeyDown || !selection.isCollapsed) return;
 
-                var value = this.value;
+                var value = void 0;
                 if (data(this, 'isInput')) {
                     var cursorPosition = getCursorPosition(this);
-                    value = value.slice(0, cursorPosition);
+                    value = this.value.slice(0, cursorPosition);
                     activeElementCursorPosition = cursorPosition;
+                } else {
+                    var range = selection.getRangeAt(0);
+
+                    var _getContainerTextNode3 = getContainerTextNode(range),
+                        _cursorPosition3 = _getContainerTextNode3.cursorPosition,
+                        containerTextNode = _getContainerTextNode3.containerTextNode;
+
+                    if (!containerTextNode) return;
+                    value = containerTextNode.nodeValue.slice(0, _cursorPosition3);
+                    activeElementCursorPosition = _cursorPosition3;
                 }
+
+                var caretPosition = getCaretPosition(this, activeElementCursorPosition);
+                if (!caretPosition) return;
 
                 handleDropdown: {
                     (function () {
@@ -544,7 +636,6 @@ var AutoSuggest = function () {
                                                         });
                                                     });
 
-                                                    var caretPosition = getCaretPosition(_this, activeElementCursorPosition);
                                                     self.dropdown.show(caretPosition);
                                                 } else {
                                                     self.dropdown.hide();

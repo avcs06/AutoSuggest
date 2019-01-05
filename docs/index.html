@@ -51,11 +51,12 @@
     <body>
         <div id="root">
             <h1 class="heading">AutoSuggest <small>- by AvcS</small></h1>
-            <p><strong>HEADSUP!!!</strong> This example is not for noobs and I am too lazy to write documentation.</p>
+            <p><strong>HEADSUP!!!</strong> The documentation is not yet ready for this plugin. until then please refer to the below example for information on how to use the plugin.</p>
             <p>
                 We will use following code, which covers all possible configurations in all possible input fields.
                 <pre>
-$('#input').autoSuggest($('#textarea').autoSuggest({
+const instance = new AutoSuggest({
+    caseSensitive: false,
     suggestions: [
         {
             trigger: '&lt;',
@@ -78,6 +79,7 @@ $('#input').autoSuggest($('#textarea').autoSuggest({
             ]
         }, {
             trigger: '//',
+            caseSensitive: true,
             suggestions: [
                 'hello',
                 'world',
@@ -93,19 +95,23 @@ $('#input').autoSuggest($('#textarea').autoSuggest({
             var dataset = $('#input').val() + $('#textarea').val();
             dataset = dataset.toLowerCase().split(/\s+/);
             dataset.forEach(function(word) {
-                if(
+                if (
                     word.length >= 4 &&
                     !word.indexOf(keyword) &&
                     word !== keyword &&
                     results.indexOf(word) === -1
                 ) {
-                    results.push(word);   
+                    results.push(word);
                 }
             });
             callback(results);
         }
     ]
-}));
+}, $('#input'), document.getElementById('textarea'));
+
+instance.addInputs(document.getElementById('contenteditable'));
+// instance.removeInputs(document.getElementById('input'));
+// instance.destroy(); // removes autosuggest from all inputs
                 </pre>
             </p>
             <h3 class="subheading">Input Demo</h3>
@@ -162,7 +168,7 @@ $('#input').autoSuggest($('#textarea').autoSuggest({
                         callback(results);
                     }
                 ]
-            }, $('#input'), $('#textarea'));
+            }, $('#input'), $('#textarea'), $('#contenteditable')[0]);
         </script>
     </body>
 </html>
