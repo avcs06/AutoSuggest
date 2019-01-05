@@ -1,19 +1,18 @@
 {
   "name": "suggest",
-  "version": "0.0.0",
-  "description": "Suggestion Dropdown for text fields",
+  "version": "1.0.0-beta",
+  "description": "Suggestion manager for input fields",
   "main": "lib/AutoSuggest.js",
-  "repository": "",
+  "repository": "git@github.com:avcs06/autosuggest.git",
   "scripts": {
     "clean": "rimraf lib dist es",
-    "build": "npm run clean && npm run build:commonjs && npm run build:umd && npm run build:umd:docs && npm run build:umd:min && npm run build:es",
+    "build": "npm run clean && npm run build:commonjs && npm run build:umd && npm run build:umd:min && npm run build:es",
     "build:watch": "echo 'build && watch the COMMONJS version of the package - for other version, run specific tasks' && npm run build:commonjs:watch",
     "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib",
     "build:commonjs:watch": "npm run build:commonjs -- --watch",
     "build:es": "cross-env BABEL_ENV=es babel src --out-dir es",
     "build:es:watch": "npm run build:es -- --watch",
     "build:umd": "cross-env BABEL_ENV=es NODE_ENV=development node_modules/.bin/rollup src/AutoSuggest.js --config --sourcemap --output dist/AutoSuggest.js",
-    "build:umd:docs": "cross-env BABEL_ENV=es NODE_ENV=development node_modules/.bin/rollup src/AutoSuggest.js --config --sourcemap --output docs/AutoSuggest.js",
     "build:umd:watch": "npm run build:umd -- --watch",
     "build:umd:min": "cross-env BABEL_ENV=es NODE_ENV=production rollup src/AutoSuggest.js --config --output dist/AutoSuggest.min.js",
     "prepublish": "npm run build"
@@ -41,7 +40,5 @@
     "rollup-plugin-uglify": "^2.0.1",
     "rollup-watch": "^4.0.0"
   },
-  "dependencies": {
-    "jquery": "^3.3.1"
-  }
+  "dependencies": {}
 }
