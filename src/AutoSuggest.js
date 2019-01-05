@@ -1,5 +1,5 @@
 import {
-    data, cloneStyle, htmlEncode,
+    data, cloneStyle,
     getGlobalOffset,
     getCursorPosition,
     getScrollLeftForInput,
@@ -14,22 +14,17 @@ function getCaretPosition(element, cursorPosition) {
         const originalValue = element.value;
         const value = originalValue.slice(0, cursorPosition);
 
-        //Create a clone of our input field using div and copy value into div
-        //Wrap last character in a span to get its position
-        const oldclone = document.getElementById('autosuggest-positionclone');
-        if (oldclone) {
-            document.body.removeChild(oldclone);
-        }
-
-        const clone = document.createElement('div');
+        const clone = document.createElement('pre');
         clone.id = 'autosuggest-positionclone';
 
+        //Create a clone of our input field using div and copy value into div
+        //Wrap last character in a span to get its position
         const positioner = document.createElement('span');
-        positioner.appendChild(document.createTextNode(htmlEncode(value.slice(-1))));
+        positioner.appendChild(document.createTextNode(value.slice(-1)));
 
-        clone.appendChild(document.createTextNode(htmlEncode(value.slice(0, -1))));
+        clone.appendChild(document.createTextNode(value.slice(0, -1)));
         clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(htmlEncode(originalValue.slice(cursorPosition))));
+        clone.appendChild(document.createTextNode(originalValue.slice(cursorPosition)));
         cloneStyle(element, clone);
 
         //Get position of element and overlap our clone on the element

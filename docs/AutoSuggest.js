@@ -44,10 +44,6 @@ var createClass = function () {
   };
 }();
 
-var htmlEncode = function htmlEncode(value) {
-    return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-};
-
 var ensure = function ensure(context, object, keys) {
     [].concat(keys).forEach(function (key) {
         if (typeof object[key] === 'undefined') {
@@ -358,22 +354,17 @@ function getCaretPosition(element, cursorPosition) {
         var originalValue = element.value;
         var value = originalValue.slice(0, cursorPosition);
 
-        //Create a clone of our input field using div and copy value into div
-        //Wrap last character in a span to get its position
-        var oldclone = document.getElementById('autosuggest-positionclone');
-        if (oldclone) {
-            document.body.removeChild(oldclone);
-        }
-
-        var clone = document.createElement('div');
+        var clone = document.createElement('pre');
         clone.id = 'autosuggest-positionclone';
 
+        //Create a clone of our input field using div and copy value into div
+        //Wrap last character in a span to get its position
         var positioner = document.createElement('span');
-        positioner.appendChild(document.createTextNode(htmlEncode(value.slice(-1))));
+        positioner.appendChild(document.createTextNode(value.slice(-1)));
 
-        clone.appendChild(document.createTextNode(htmlEncode(value.slice(0, -1))));
+        clone.appendChild(document.createTextNode(value.slice(0, -1)));
         clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(htmlEncode(originalValue.slice(cursorPosition))));
+        clone.appendChild(document.createTextNode(originalValue.slice(cursorPosition)));
         cloneStyle(element, clone);
 
         //Get position of element and overlap our clone on the element
