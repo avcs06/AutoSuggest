@@ -1,7 +1,7 @@
 {
   "name": "@avcs/autosuggest",
-  "version": "1.0.1-beta",
-  "description": "Suggestion manager for input fields",
+  "version": "1.1.0-beta",
+  "description": "A JavaScript plugin to implement IDE like autocompletion in input, textarea or contenteditable fields.",
   "main": "lib/AutoSuggest.js",
   "repository": "git@github.com:avcs06/autosuggest.git",
   "scripts": {
@@ -20,7 +20,9 @@
   },
   "keywords": [
     "autocomplete",
-    "sugggestion",
+    "suggest",
+    "textarea",
+    "contenteditable",
     "dropdown"
   ],
   "author": "AvcS",
