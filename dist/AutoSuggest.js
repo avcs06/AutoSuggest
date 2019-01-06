@@ -54,7 +54,7 @@ var ensure = function ensure(context, object, keys) {
 var ensureType = function ensureType(context, object, key, type) {
     [].concat(object[key]).forEach(function (value) {
         if ((typeof value === 'undefined' ? 'undefined' : _typeof(value)) !== type) {
-            throw new Error('AutoSuggest: Invalid Type for ' + context + '.' + key + ', expected ' + type);
+            throw new TypeError('AutoSuggest: Invalid Type for ' + context + '.' + key + ', expected ' + type);
         }
     });
 };
@@ -128,34 +128,48 @@ var data = function data(element, key, value) {
     }
 };
 
-function validateSuggestions(suggestions, ignoreOn) {
+function validateSuggestions(suggestions) {
     return [].concat(suggestions).map(function (suggestion) {
         var type = typeof suggestion === 'undefined' ? 'undefined' : _typeof(suggestion);
         if (type === 'string') {
             suggestion = {
+                on: [suggestion],
                 show: suggestion,
-                replaceWith: suggestion,
-                cursorPosition: [0, 0]
+                use: suggestion,
+                focus: [0, 0]
             };
-
-            if (!ignoreOn) {
-                suggestion.on = [suggestion.show];
-            }
         } else if (type === 'object') {
-            ensure('Suggestion', suggestion, ['show', 'replaceWith']);
-            ensureType('Suggestion', suggestion, 'show', 'string');
-            ensureType('Suggestion', suggestion, 'replaceWith', 'string');
-            suggestion.cursorPosition = suggestion.cursorPosition || [0, 0];
-            if (suggestion.cursorPosition.constructor !== Array) {
-                suggestion.cursorPosition = [suggestion.cursorPosition, suggestion.cursorPosition];
+            try {
+                ensure('Suggestion', suggestion, 'value');
+                ensureType('Suggestion', suggestion, 'value', 'string');
+            } catch (e1) {
+                if (e1 instanceof TypeError) throw e1;
+
+                try {
+                    ensure('Suggestion', suggestion, ['on', 'show', 'use']);
+                } catch (e2) {
+                    if (suggestion.on || suggestion.show || suggestion.use) {
+                        throw e2;
+                    } else {
+                        throw e1;
+                    }
+                }
+
+                ensureType('Suggestion', suggestion, 'on', 'string');
+                ensureType('Suggestion', suggestion, 'use', 'string');
+                ensureType('Suggestion', suggestion, 'show', 'string');
             }
 
-            if (!ignoreOn) {
-                ensure('Suggestion', suggestion, 'on');
-                ensureType('Suggestion', suggestion, 'on', 'string');
-                suggestion.on = [].concat(suggestion.on);
+            suggestion.show = suggestion.show || suggestion.value;
+            suggestion.use = suggestion.use || suggestion.value;
+            suggestion.on = [suggestion.show].concat(suggestion.on || suggestion.value);
+
+            suggestion.focus = suggestion.focus || [0, 0];
+            if (suggestion.focus.constructor !== Array) {
+                suggestion.focus = [suggestion.focus, suggestion.focus];
             }
         }
+
         return suggestion;
     });
 }
@@ -168,21 +182,26 @@ function SuggestionList(options) {
         };
     }
 
-    ensure('SuggestionList', options, 'values');
-    if (typeof options.caseSensitive === 'undefined') {
-        options.caseSensitive = true;
+    try {
+        ensure('SuggestionList', options, 'trigger');
+        ensureType('Suggestion', options, 'trigger', 'string');
+    } catch (e) {
+        if (e instanceof TypeError) throw e;
     }
+
+    ensure('SuggestionList', options, 'values');
+    options.caseSensitive = Boolean(options.caseSensitive);
 
     if (typeof options.values === 'function') {
         this.getSuggestions = function (keyword, callback) {
             options.values(keyword, function (values) {
-                return callback(validateSuggestions(values, true));
+                return callback(validateSuggestions(values));
             });
         };
     } else if (options.values.constructor === Array || typeof options.values === 'string') {
         options.values = validateSuggestions(options.values);
         this.getSuggestions = function (keyword, callback) {
-            var matcher = new RegExp(keyword, !options.caseSensitive ? 'i' : '');
+            var matcher = new RegExp('^' + keyword, !options.caseSensitive ? 'i' : '');
             callback(options.values.filter(function (value) {
                 var matchFound = false;
                 for (var i = 0; i < value.on.length; i++) {
@@ -196,20 +215,18 @@ function SuggestionList(options) {
         };
     }
 
-    var trigger = options.trigger;
-    if (trigger && typeof trigger !== 'string') {
-        throw new Error('AutoSuggest: Invalid Type, SuggestionList.trigger should be a string');
-    }
-
-    if (trigger) {
-        var escapedTrigger = '\\' + trigger.split('').join('\\');
+    this.trigger = options.trigger;
+    if (this.trigger) {
+        var escapedTrigger = '\\' + this.trigger.split('').join('\\');
         this.regex = new RegExp('(?:^|[^' + escapedTrigger + ']+?)' + escapedTrigger + '(\\S*)$');
     } else {
         this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
     }
-
-    this.trigger = trigger;
 }
+
+SuggestionList.prototype.getMatch = function (value) {
+    return value.match(this.regex)[1];
+};
 
 var SuggestionDropdown = function () {
     function SuggestionDropdown() {
@@ -404,6 +421,7 @@ function getCaretPosition(element, cursorPosition) {
             }
         } else {
             clone.style.maxWidth = '100%';
+            clone.style.whiteSpace = 'pre-wrap';
             clone.scrollTop = element.scrollTop;
             clone.scrollLeft = element.scrollLeft;
         }
@@ -465,7 +483,7 @@ var setValue = function setValue(_ref) {
         cursorPosition = _ref.cursorPosition,
         suggestion = _ref.suggestion;
 
-    var insertText = suggestion.replaceWith;
+    var insertText = suggestion.use;
 
     if (data(element, 'isInput')) {
         var originalValue = element.value;
@@ -477,7 +495,7 @@ var setValue = function setValue(_ref) {
         element.focus();
 
         var cursorStartPosition = value.length;
-        var newCursorPositions = suggestion.cursorPosition;
+        var newCursorPositions = suggestion.focus;
         var newPosition = cursorStartPosition + insertText.length;
         var newPosition1 = newPosition + newCursorPositions[0];
         var newPosition2 = newPosition + newCursorPositions[1];
@@ -503,7 +521,7 @@ var setValue = function setValue(_ref) {
         containerTextNode.nodeValue = _value + insertText + _originalValue.slice(_cursorPosition2);
 
         var _cursorStartPosition = _value.length;
-        var _newCursorPositions = suggestion.cursorPosition;
+        var _newCursorPositions = suggestion.focus;
         var _newPosition = _cursorStartPosition + insertText.length;
         var _newPosition2 = _newPosition + _newCursorPositions[0];
         var _newPosition3 = _newPosition + _newCursorPositions[1];
@@ -620,7 +638,7 @@ var AutoSuggest = function () {
                                 triggerMatchFound = true;
 
                                 (function (i) {
-                                    var match = value.match(_suggestionList.regex)[1];
+                                    var match = _suggestionList.getMatch(value);
                                     _suggestionList.getSuggestions(match, function (results) {
                                         execute(function () {
                                             if (self.dropdown.isEmpty) {

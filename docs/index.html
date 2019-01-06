@@ -60,34 +60,36 @@ const instance = new AutoSuggest({
     suggestions: [
         {
             trigger: '&lt;',
-            suggestions: [
+            values: [
                 {
-                    on: 'script',
-                    show: 'script',
-                    replaceWith: '&lt;script src="text/javascript"&gt;&lt;\/script&gt;',
-                    cursorPosition: [-26, -11]
+                    value: 'script',
+                    use: '&lt;script type="text/javascript" src="path/to/jsfile"&gt;&lt;\/script&gt;',
+                    focus: [-25, -11]
+                },
+                {
+                    value: 'link',
+                    use: '&lt;link href="path/to/cssfile" rel="stylesheet" \/&gt;',
+                    focus: [-36, -21]
                 }
             ]
         }, {
             trigger: '@',
-            suggestions: [
+            values: [
                 {
                     on: ['avcs', 'cham', 'chandu'],
                     show: 'Chandrasekhar Ambula V',
-                    replaceWith: '@AmbulaV'
+                    use: '@AmbulaV'
+                },
+                {
+                    on: ['pj'],
+                    show: 'Peter John',
+                    use: '@John'
                 }
             ]
         }, {
             trigger: '//',
             caseSensitive: true,
-            suggestions: [
-                'hello',
-                'world',
-                'idiot',
-                'stupid',
-                'rascal',
-                'avcs'
-            ]
+            values: ['hello', 'world', 'idiot', 'peter', 'pro', 'avcs']
         }, function (keyword, callback) {
             keyword = keyword.toLowerCase();
 
@@ -96,7 +98,7 @@ const instance = new AutoSuggest({
             dataset = dataset.toLowerCase().split(/\s+/);
             dataset.forEach(function(word) {
                 if (
-                    word.length >= 4 &&
+                    word.length &gt;= 4 &&
                     !word.indexOf(keyword) &&
                     word !== keyword &&
                     results.indexOf(word) === -1
@@ -131,10 +133,14 @@ instance.addInputs(document.getElementById('contenteditable'));
                         trigger: '<',
                         values: [
                             {
-                                on: 'script',
-                                show: 'script',
-                                replaceWith: '<script src="text/javascript"><\/script>',
-                                cursorPosition: [-26, -11]
+                                value: 'script',
+                                use: '<script type="text/javascript" src="path/to/jsfile"><\/script>',
+                                focus: [-25, -11]
+                            },
+                            {
+                                value: 'link',
+                                use: '<link href="path/to/cssfile" rel="stylesheet" \/>',
+                                focus: [-36, -21]
                             }
                         ]
                     }, {
@@ -143,13 +149,19 @@ instance.addInputs(document.getElementById('contenteditable'));
                             {
                                 on: ['avcs', 'cham', 'chandu'],
                                 show: 'Chandrasekhar Ambula V',
-                                replaceWith: '@AmbulaV'
+                                use: '@AmbulaV'
+                            },
+                            {
+                                on: ['pj'],
+                                show: 'Peter John',
+                                use: '@John'
                             }
                         ]
                     }, {
                         trigger: '//',
-                        values: ['hello', 'world', 'idiot', 'stupid', 'rascal', 'avcs']
-                    }, function(keyword, callback) {
+                        caseSensitive: true,
+                        values: ['hello', 'world', 'idiot', 'peter', 'pro', 'avcs']
+                    }, function (keyword, callback) {
                         keyword = keyword.toLowerCase();
 
                         var results = [];

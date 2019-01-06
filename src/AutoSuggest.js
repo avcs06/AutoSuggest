@@ -64,6 +64,7 @@ function getCaretPosition(element, cursorPosition) {
             }
         } else {
             clone.style.maxWidth = '100%';
+            clone.style.whiteSpace = 'pre-wrap';
             clone.scrollTop = element.scrollTop;
             clone.scrollLeft = element.scrollLeft;
         }
@@ -117,7 +118,7 @@ function getCaretPosition(element, cursorPosition) {
 }
 
 const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
-    const insertText = suggestion.replaceWith;
+    const insertText = suggestion.use;
 
     if (data(element, 'isInput')) {
         const originalValue = element.value;
@@ -129,7 +130,7 @@ const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
         element.focus();
 
         const cursorStartPosition = value.length;
-        const newCursorPositions = suggestion.cursorPosition;
+        const newCursorPositions = suggestion.focus;
         const newPosition = cursorStartPosition + insertText.length;
         const newPosition1 = newPosition + newCursorPositions[0];
         const newPosition2 = newPosition + newCursorPositions[1];
@@ -151,7 +152,7 @@ const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
         containerTextNode.nodeValue = value + insertText + originalValue.slice(cursorPosition);
 
         const cursorStartPosition = value.length;
-        const newCursorPositions = suggestion.cursorPosition;
+        const newCursorPositions = suggestion.focus;
         const newPosition = cursorStartPosition + insertText.length;
         const newPosition1 = newPosition + newCursorPositions[0];
         const newPosition2 = newPosition + newCursorPositions[1];
@@ -257,7 +258,7 @@ class AutoSuggest {
                             triggerMatchFound = true;
 
                             (i => {
-                                const match = value.match(suggestionList.regex)[1];
+                                const match = suggestionList.getMatch(value);
                                 suggestionList.getSuggestions(match, results => {
                                     execute(() => {
                                         if (self.dropdown.isEmpty) {

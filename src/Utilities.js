@@ -8,7 +8,7 @@ export const ensure = (context, object, keys) => {
 export const ensureType = (context, object, key, type) => {
     [].concat(object[key]).forEach(value => {
         if (typeof value !== type) {
-            throw new Error(`AutoSuggest: Invalid Type for ${context}.${key}, expected ${type}`);
+            throw new TypeError(`AutoSuggest: Invalid Type for ${context}.${key}, expected ${type}`);
         }
     });
 };

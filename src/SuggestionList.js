@@ -1,33 +1,47 @@
 import { ensure, ensureType } from './Utilities';
 
-function validateSuggestions (suggestions, ignoreOn) {
+function validateSuggestions (suggestions) {
     return [].concat(suggestions).map(suggestion => {
         const type = typeof suggestion;
         if (type === 'string') {
             suggestion = {
+                on: [suggestion],
                 show: suggestion,
-                replaceWith: suggestion,
-                cursorPosition: [0, 0]
+                use: suggestion,
+                focus: [0, 0]
             };
-
-            if (!ignoreOn) {
-                suggestion.on = [suggestion.show];
-            }
         } else if (type === 'object') {
-            ensure('Suggestion', suggestion, ['show', 'replaceWith']);
-            ensureType('Suggestion', suggestion, 'show', 'string');
-            ensureType('Suggestion', suggestion, 'replaceWith', 'string');
-            suggestion.cursorPosition = suggestion.cursorPosition || [0, 0];
-            if (suggestion.cursorPosition.constructor !== Array) {
-                suggestion.cursorPosition = [suggestion.cursorPosition, suggestion.cursorPosition];
+            try {
+                ensure('Suggestion', suggestion, 'value');
+                ensureType('Suggestion', suggestion, 'value', 'string');
+            } catch (e1) {
+                if (e1 instanceof TypeError)  throw e1;
+
+                try {
+                    ensure('Suggestion', suggestion, ['on', 'show', 'use']);
+                } catch(e2) {
+                    if (suggestion.on || suggestion.show || suggestion.use) {
+                        throw e2;
+                    } else {
+                        throw e1;
+                    }
+                }
+
+                ensureType('Suggestion', suggestion, 'on', 'string');
+                ensureType('Suggestion', suggestion, 'use', 'string');
+                ensureType('Suggestion', suggestion, 'show', 'string');
             }
 
-            if (!ignoreOn) {
-                ensure('Suggestion', suggestion, 'on');
-                ensureType('Suggestion', suggestion, 'on', 'string');
-                suggestion.on = [].concat(suggestion.on);
+            suggestion.show = suggestion.show || suggestion.value;
+            suggestion.use = suggestion.use || suggestion.value;
+            suggestion.on = [suggestion.show].concat(suggestion.on || suggestion.value);
+
+            suggestion.focus = suggestion.focus || [0, 0];
+            if (suggestion.focus.constructor !== Array) {
+                suggestion.focus = [suggestion.focus, suggestion.focus];
             }
         }
+
         return suggestion;
     });
 }
@@ -40,19 +54,24 @@ function SuggestionList(options) {
         };
     }
 
-    ensure('SuggestionList', options, 'values');
-    if (typeof options.caseSensitive === 'undefined') {
-        options.caseSensitive = true;
+    try {
+        ensure('SuggestionList', options, 'trigger');
+        ensureType('Suggestion', options, 'trigger', 'string');
+    } catch (e) {
+        if (e instanceof TypeError) throw e;
     }
+
+    ensure('SuggestionList', options, 'values');
+    options.caseSensitive = Boolean(options.caseSensitive);
 
     if (typeof options.values === 'function') {
         this.getSuggestions = (keyword, callback) => {
-            options.values(keyword, values => callback(validateSuggestions(values, true)));
+            options.values(keyword, values => callback(validateSuggestions(values)));
         };
     } else if (options.values.constructor === Array || typeof options.values === 'string') {
         options.values = validateSuggestions(options.values);
         this.getSuggestions = (keyword, callback) => {
-            const matcher = new RegExp(keyword, !options.caseSensitive ? 'i' : '');
+            const matcher = new RegExp('^' + keyword, !options.caseSensitive ? 'i' : '');
             callback (
                 options.values.filter(value => {
                     let matchFound = false;
@@ -68,19 +87,17 @@ function SuggestionList(options) {
         };
     }
 
-    const trigger = options.trigger;
-    if (trigger && typeof trigger !== 'string') {
-        throw new Error('AutoSuggest: Invalid Type, SuggestionList.trigger should be a string');
-    }
-
-    if (trigger) {
-        const escapedTrigger = `\\${trigger.split('').join('\\')}`;
+    this.trigger = options.trigger;
+    if (this.trigger) {
+        const escapedTrigger = `\\${this.trigger.split('').join('\\')}`;
         this.regex = new RegExp(`(?:^|[^${escapedTrigger}]+?)${escapedTrigger}(\\S*)$`);
     } else {
         this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
     }
-
-    this.trigger = trigger;
 }
+
+SuggestionList.prototype.getMatch = function (value) {
+    return value.match(this.regex)[1];
+};
 
 export default SuggestionList;
