@@ -13,7 +13,7 @@ npm i @avcs/autosuggest --save
 ```
 
 # Demo
-Please find an example using all possible configurations in all possible input fields [here](https://avcs06.github.io/AutoSuggest/).
+Please find an example using all possible configurations in all possible input fields [here](https://avcs.pro/autosuggest).
 
 # AutoSuggest
 ### Initialization
