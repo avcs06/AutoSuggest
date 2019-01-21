@@ -309,21 +309,17 @@ var SuggestionDropdown = function () {
             });
 
             // Calculate width
-            if (this.isActive) {
-                this.setWidth();
-                if (this.dropdown.style.top) ;
-            } else {
+            if (!this.isActive) {
                 this.show();
-                this.setWidth();
+            }
+
+            this.width = this.dropdownContent.offsetWidth;
+
+            if (!this.isActive) {
                 this.hide();
             }
 
             this.isEmpty = false;
-        }
-    }, {
-        key: 'setWidth',
-        value: function setWidth() {
-            this.width = this.dropdownContent.offsetWidth;
         }
     }, {
         key: 'getActive',

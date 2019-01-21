@@ -72,21 +72,19 @@ class SuggestionDropdown {
         });
 
         // Calculate width
-        if (this.isActive) {
-            this.setWidth();
-            if (this.dropdown.style.top);
-        } else {
+        if (!this.isActive) {
             this.show();
-            this.setWidth();
+        }
+
+        this.width = this.dropdownContent.offsetWidth;
+
+        if (!this.isActive) {
             this.hide();
         }
 
         this.isEmpty = false;
     }
 
-    setWidth() {
-        this.width = this.dropdownContent.offsetWidth;
-    }
 
     getActive() {
         const activeLinks = Array.prototype.slice.call(this.dropdownContent.querySelectorAll('li.active'), 0);
