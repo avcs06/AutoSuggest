@@ -6,7 +6,7 @@
   "repository": "git@github.com:avcs06/autosuggest.git",
   "scripts": {
     "clean": "rimraf lib dist es",
-    "build": "npm run clean && npm run build:commonjs && npm run build:umd && npm run build:umd:docs && npm run build:umd:min && npm run build:es && npm run build:css",
+    "build": "npm run clean && npm run build:commonjs && npm run build:umd && npm run build:umd:min && npm run build:es && npm run build:css",
     "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib",
     "build:commonjs:watch": "npm run build:commonjs -- --watch",
     "build:es": "cross-env BABEL_ENV=es babel src --out-dir es",

@@ -170,6 +170,7 @@ class AutoSuggest {
 
         this.inputs = [];
         this.dropdown = new SuggestionDropdown();
+        this.maxSuggestions = options.maxSuggestions || 10;
 
         // validate suggestions
         this.suggestionLists = options.suggestions || [];
@@ -264,15 +265,17 @@ class AutoSuggest {
                                         if (self.dropdown.isEmpty) {
                                             if (results.length) {
                                                 activeSuggestionList = suggestionList;
-
-                                                self.dropdown.fill(results, suggestion => {
-                                                    setValue({
-                                                        element: this,
-                                                        trigger: suggestionList.trigger,
-                                                        cursorPosition: activeElementCursorPosition,
-                                                        suggestion: suggestion,
-                                                    });
-                                                });
+                                                self.dropdown.fill(
+                                                    results.slice(0, self.maxSuggestions),
+                                                    suggestion => {
+                                                        setValue({
+                                                            element: this,
+                                                            trigger: suggestionList.trigger,
+                                                            cursorPosition: activeElementCursorPosition,
+                                                            suggestion: suggestion,
+                                                        });
+                                                    }
+                                                );
 
                                                 self.dropdown.show(caretPosition);
                                             } else {

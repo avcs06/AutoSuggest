@@ -27,6 +27,9 @@ var instance = new AutoSuggest(options, ...inputFields);
 **`caseSensitive`**: `Boolean` *(default: `false`)*  
 Setting it to `true` will show suggestions only if the case of search value matches the case of suggestion.
 
+**`maxSuggestions`**: `Number` *(default: `10`)*  
+Maximum number of suggestions to be shown in the dropdown, suggestions will be taken from the top of SuggestionList.
+
 **`suggestions`**: `Array<SuggestionList | Object<Options for SuggestionList>>` *(default: `[]`)*
 
 ### Methods

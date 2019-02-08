@@ -537,6 +537,7 @@ var AutoSuggest = function () {
 
         this.inputs = [];
         this.dropdown = new SuggestionDropdown();
+        this.maxSuggestions = options.maxSuggestions || 10;
 
         // validate suggestions
         this.suggestionLists = options.suggestions || [];
@@ -640,8 +641,7 @@ var AutoSuggest = function () {
                                             if (self.dropdown.isEmpty) {
                                                 if (results.length) {
                                                     activeSuggestionList = _suggestionList;
-
-                                                    self.dropdown.fill(results, function (suggestion) {
+                                                    self.dropdown.fill(results.slice(0, self.maxSuggestions), function (suggestion) {
                                                         setValue({
                                                             element: _this,
                                                             trigger: _suggestionList.trigger,
