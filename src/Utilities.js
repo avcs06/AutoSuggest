@@ -21,6 +21,10 @@ export const cloneStyle = (element1, element2) => {
         }
     }
 };
+
+export const getComputedStyle = (element, style) =>
+    window.getComputedStyle(element).getPropertyValue(style);
+
 export const getGlobalOffset = $0 => {
     let node = $0, top = 0, left = 0;
 
@@ -32,17 +36,18 @@ export const getGlobalOffset = $0 => {
     return {left, top};
 };
 
-export const getScrollLeftForInput = element => {
-    if(element.createTextRange) {
-        const range = element.createTextRange();
-        const inputStyle = window.getComputedStyle(element);
+export const getScrollLeftForInput = input => {
+    if (input.createTextRange) {
+        const range = input.createTextRange();
+        const inputStyle = window.getComputedStyle(input);
         const paddingLeft = parseFloat(inputStyle.paddingLeft);
         const rangeRect = range.getBoundingClientRect();
-        return element.getBoundingClientRect().left + element.clientLeft + paddingLeft - rangeRect.left;
+        return input.getBoundingClientRect().left + input.clientLeft + paddingLeft - rangeRect.left;
     } else {
-        return element.scrollLeft;
+        return input.scrollLeft;
     }
 };
+
 export const getCursorPosition = input => {
     let position = 0;
 
@@ -57,6 +62,23 @@ export const getCursorPosition = input => {
 
     return position;
 };
+
+export const getContainerTextNode = () => {
+    const selection = window.getSelection();
+    let cursorPosition = selection.focusOffset;
+    let containerTextNode = selection.focusNode;
+
+    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+        containerTextNode = containerTextNode.childNodes[cursorPosition];
+        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+            containerTextNode = containerTextNode.firstChild;
+        }
+
+        cursorPosition = 0;
+    }
+
+    return { cursorPosition, containerTextNode };
+}
 
 export const makeAsyncQueueRunner = () => {
     let i = 0;
@@ -82,4 +104,4 @@ export const createNode = html => {
     var div = document.createElement('div');
     div.innerHTML = html.trim();
     return div.firstChild; 
-}
+};

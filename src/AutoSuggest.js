@@ -3,61 +3,53 @@ import {
     getGlobalOffset,
     getCursorPosition,
     getScrollLeftForInput,
-    makeAsyncQueueRunner
+    makeAsyncQueueRunner,
+    getContainerTextNode,
+    getComputedStyle
 } from './Utilities';
 
 import SuggestionList from './SuggestionList';
 import SuggestionDropdown from './SuggestionDropdown';
 
-function getContainerTextNode(range) {
-    let cursorPosition = range.startOffset;
-    let containerTextNode = range.startContainer;
-
-    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-        cursorPosition = 0;
-        containerTextNode = containerTextNode.childNodes[range.startOffset];
-        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-            containerTextNode = containerTextNode.firstChild;
-        }
-    }
-
-    return { cursorPosition, containerTextNode };
+function splitValue(originalValue, cursorPosition, trigger) {
+    const value = originalValue.slice(0, cursorPosition);
+    let textAfterTrigger = value.split(trigger || /\W/).pop();
+    const textUptoTrigger = textAfterTrigger.length ? value.slice(0, 0 - textAfterTrigger.length) : value;
+    textAfterTrigger += originalValue.slice(cursorPosition);
+    return { textAfterTrigger, textUptoTrigger };
 }
 
-function getCaretPosition(element, cursorPosition) {
+// Invisible character
+const POSITIONER_CHARACTER = "\ufeff";
+function getCaretPosition(element, trigger) {
     if (data(element, 'isInput')) {
-        const originalValue = element.value;
-        const value = originalValue.slice(0, cursorPosition);
+        const cursorPosition = getCursorPosition(element);
+        const { textAfterTrigger, textUptoTrigger } = splitValue(element.value, cursorPosition, trigger);
 
+        // pre to retain special characters
         const clone = document.createElement('pre');
         clone.id = 'autosuggest-positionclone';
 
-        //Create a clone of our input field using div and copy value into div
-        //Wrap last character in a span to get its position
         const positioner = document.createElement('span');
-        positioner.appendChild(document.createTextNode(value.slice(-1)));
+        positioner.appendChild(document.createTextNode(POSITIONER_CHARACTER));
 
-        clone.appendChild(document.createTextNode(value.slice(0, -1)));
+        clone.appendChild(document.createTextNode(textUptoTrigger.replace(/ /g, '\u00A0')));
         clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(originalValue.slice(cursorPosition)));
+        clone.appendChild(document.createTextNode(textAfterTrigger.replace(/ /g, '\u00A0')));
         cloneStyle(element, clone);
 
-        //Get position of element and overlap our clone on the element
         const elementPosition = getGlobalOffset(element);
-
         clone.style.opacity = 0;
         clone.style.position = 'absolute';
         clone.style.top = `${elementPosition.top}px`;
         clone.style.left = `${elementPosition.left}px`;
-
-        //append clone and scroll
         document.body.appendChild(clone);
 
-        //Extra styles for the clone depending on type of input
+        // Extra styles for the clone depending on type of input
         if (element.tagName === 'INPUT') {
             clone.style.overflowX = 'auto';
             clone.style.whiteSpace = 'nowrap';
-            if (cursorPosition === originalValue.length) {
+            if (cursorPosition === element.value.length) {
                 clone.scrollLeft = clone.scrollWidth - clone.clientWidth;
             } else {
                 clone.scrollLeft = Math.min(getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
@@ -69,96 +61,87 @@ function getCaretPosition(element, cursorPosition) {
             clone.scrollLeft = element.scrollLeft;
         }
 
-        //Get position of span
         const caretPosition = getGlobalOffset(positioner);
-        caretPosition.left += 10 - clone.scrollLeft;
-        caretPosition.top += 28 - clone.scrollTop;
-        document.body.removeChild(clone);
+        caretPosition.left -= clone.scrollLeft;
 
+        const charHeight = parseFloat(getComputedStyle(positioner, 'line-height'));
+        caretPosition.top += charHeight - clone.scrollTop;
+
+        document.body.removeChild(clone);
         return caretPosition;
     } else {
-        //Invisible character
-        const markerTextChar = "\ufeff";
-        //Get the content after last trigger for showing matched results in dropdown
-        const selection = window.getSelection().getRangeAt(0);
-
-        const { cursorPosition, containerTextNode } = getContainerTextNode(selection);
-        if (!containerTextNode) {
-            return null;
-        }
+        const { startContainer, startOffset, endContainer, endOffset } = window.getSelection().getRangeAt(0);
+        const { cursorPosition, containerTextNode } = getContainerTextNode();
+        const { textAfterTrigger, textUptoTrigger } = splitValue(containerTextNode.nodeValue, cursorPosition, trigger);
 
         const parentNode = containerTextNode.parentNode;
         const referenceNode = containerTextNode.nextSibling;
-        const remainingText = containerTextNode.nodeValue.slice(cursorPosition);
-        containerTextNode.nodeValue = containerTextNode.nodeValue.slice(0, cursorPosition);
 
-        // Create the marker element containing invisible character using DOM methods and insert it
-        const markerElement = document.createElement("span");
-        markerElement.appendChild(document.createTextNode(markerTextChar));
-        parentNode.insertBefore(markerElement, referenceNode);
+        const positioner = document.createElement("span");
+        positioner.appendChild(document.createTextNode(POSITIONER_CHARACTER));
+        parentNode.insertBefore(positioner, referenceNode);
 
-        if (remainingText) {
-            const remainingTextNode = document.createTextNode(remainingText);
+        if (textAfterTrigger) {
+            containerTextNode.nodeValue = textUptoTrigger;
+            const remainingTextNode = document.createTextNode(textAfterTrigger);
             parentNode.insertBefore(remainingTextNode, referenceNode);
         }
 
-        // Find markerEl position
-        const caretPosition = getGlobalOffset(markerElement);
-        caretPosition.left += 10;
-        caretPosition.top += 28;
+        const caretPosition = getGlobalOffset(positioner);
+        const charHeight = parseFloat(getComputedStyle(positioner, 'line-height'));
+        caretPosition.top += charHeight;
 
-        parentNode.removeChild(markerElement);
-        parentNode.normalize();
+        // Reset DOM to the state before changes
+        parentNode.removeChild(positioner);
+        if (textAfterTrigger) {
+            parentNode.removeChild(containerTextNode.nextSibling);
+            containerTextNode.nodeValue = textUptoTrigger + textAfterTrigger;
+        }
 
-        selection.setStart(containerTextNode, cursorPosition);
-        selection.collapse(true);
+        const selection = window.getSelection().getRangeAt(0);
+        selection.setStart(startContainer, startOffset);
+        selection.setEnd(endContainer, endOffset);
 
         return caretPosition;
     }
 }
 
-const setValue = ({ element, trigger, cursorPosition, suggestion, onChange }) => {
+const getModifiedValue = (originalValue, insertText, cursorPosition, trigger) => {
+    let value = originalValue.slice(0, cursorPosition);
+    const currentValue = value.split(trigger || /\W/).pop();
+    value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
+    return value + insertText + originalValue.slice(cursorPosition);
+};
+
+const getFocusPosition = (originalValue, modifiedValue, cursorPosition, focus) => {
+    const cursorStartPosition = modifiedValue.length - (originalValue.length - cursorPosition);
+    return [cursorStartPosition + focus[0], cursorStartPosition + focus[1]];
+};
+
+const setValue = ({ element, trigger, suggestion, onChange }) => {
     const insertText = suggestion.use;
 
     if (data(element, 'isInput')) {
+        const cursorPosition = getCursorPosition(element);
         const originalValue = element.value;
-        let value = originalValue.slice(0, cursorPosition);
-        const currentValue = value.split(trigger || /\W/).pop();
-
-        value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
-        element.value = value + insertText + originalValue.slice(cursorPosition);
+        const modifiedValue = getModifiedValue(originalValue, insertText, cursorPosition, trigger);
+        element.value = modifiedValue;
         element.focus();
 
-        const cursorStartPosition = value.length;
-        const newCursorPositions = suggestion.focus;
-        const newPosition = cursorStartPosition + insertText.length;
-        const newPosition1 = newPosition + newCursorPositions[0];
-        const newPosition2 = newPosition + newCursorPositions[1];
-
-        element.setSelectionRange(newPosition1, newPosition2);
+        const focusPostion = getFocusPosition(originalValue, modifiedValue, cursorPosition, suggestion.focus);
+        element.setSelectionRange(focusPostion[0], focusPostion[1]);
     } else {
-        const selection = window.getSelection().getRangeAt(0);
-        const { cursorPosition, containerTextNode } = getContainerTextNode(selection);
-        if (!containerTextNode) {
-            return null;
-        }
+        const { cursorPosition, containerTextNode } = getContainerTextNode();
+        if (!containerTextNode) return null;
 
-        const parentNode = containerTextNode.parentNode;
         const originalValue = containerTextNode.nodeValue;
-        let value = originalValue.slice(0, cursorPosition);
-        const currentValue = value.split(trigger || /\W/).pop();
+        const modifiedValue = getModifiedValue(originalValue, insertText, cursorPosition, trigger);
+        containerTextNode.nodeValue = modifiedValue;
 
-        value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
-        containerTextNode.nodeValue = value + insertText + originalValue.slice(cursorPosition);
-
-        const cursorStartPosition = value.length;
-        const newCursorPositions = suggestion.focus;
-        const newPosition = cursorStartPosition + insertText.length;
-        const newPosition1 = newPosition + newCursorPositions[0];
-        const newPosition2 = newPosition + newCursorPositions[1];
-
-        selection.setStart(containerTextNode, newPosition1);
-        selection.setEnd(containerTextNode, newPosition2);
+        const focusPostion = getFocusPosition(originalValue, modifiedValue, cursorPosition, suggestion.focus);
+        const selection = window.getSelection().getRangeAt(0);
+        selection.setStart(containerTextNode, focusPostion[0]);
+        selection.setEnd(containerTextNode, focusPostion[1]);
     }
 
     onChange(suggestion.use, suggestion);
@@ -195,7 +178,6 @@ class AutoSuggest {
         events: {
             const self = this;
             let activeSuggestionList = null;
-            let activeElementCursorPosition = 0;
             let handledInKeyDown = false;
 
             this.onBlurHandler = function() {
@@ -214,7 +196,6 @@ class AutoSuggest {
                         setValue({
                             element: this,
                             trigger: activeSuggestionList.trigger,
-                            cursorPosition: activeElementCursorPosition,
                             suggestion: self.dropdown.getValue(),
                             onChange: self.onChange
                         });
@@ -234,24 +215,26 @@ class AutoSuggest {
             };
 
             this.onKeyUpHandler = function(e) {
-                const selection = window.getSelection();
-                if (handledInKeyDown || !selection.isCollapsed) return;
+                if (handledInKeyDown) return;
 
                 let value;
                 if (data(this, 'isInput')) {
                     const cursorPosition = getCursorPosition(this);
-                    value = this.value.slice(0, cursorPosition);
-                    activeElementCursorPosition = cursorPosition;
-                } else {
-                    const range = selection.getRangeAt(0);
-                    const { cursorPosition, containerTextNode } = getContainerTextNode(range);
-                    if (!containerTextNode) return;
-                    value = containerTextNode.nodeValue.slice(0, cursorPosition);
-                    activeElementCursorPosition = cursorPosition;
-                }
+                    if ((this.value.charAt(cursorPosition) || '').trim()) {
+                        self.dropdown.hide();
+                        return;
+                    }
 
-                const caretPosition = getCaretPosition(this, activeElementCursorPosition);
-                if (!caretPosition) return;
+                    value = this.value.slice(0, cursorPosition);
+                } else {
+                    const { cursorPosition, containerTextNode } = getContainerTextNode();
+                    if (!containerTextNode || (containerTextNode.nodeValue.charAt(cursorPosition) || '').trim()) {
+                        self.dropdown.hide();
+                        return;
+                    }
+
+                    value = containerTextNode.nodeValue.slice(0, cursorPosition);
+                }
 
                 handleDropdown: {
                     let i = 0, triggerMatchFound = false;
@@ -275,14 +258,13 @@ class AutoSuggest {
                                                         setValue({
                                                             element: this,
                                                             trigger: suggestionList.trigger,
-                                                            cursorPosition: activeElementCursorPosition,
                                                             suggestion: suggestion,
                                                             onChange: self.onChange
                                                         });
                                                     }
                                                 );
 
-                                                self.dropdown.show(caretPosition);
+                                                self.dropdown.show(getCaretPosition(this, suggestionList.trigger));
                                             } else {
                                                 self.dropdown.hide();
                                             }

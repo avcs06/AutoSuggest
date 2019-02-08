@@ -67,6 +67,11 @@ var cloneStyle = function cloneStyle(element1, element2) {
         }
     }
 };
+
+var getComputedStyle = function getComputedStyle(element, style) {
+    return window.getComputedStyle(element).getPropertyValue(style);
+};
+
 var getGlobalOffset = function getGlobalOffset($0) {
     var node = $0,
         top = 0,
@@ -80,17 +85,18 @@ var getGlobalOffset = function getGlobalOffset($0) {
     return { left: left, top: top };
 };
 
-var getScrollLeftForInput = function getScrollLeftForInput(element) {
-    if (element.createTextRange) {
-        var range = element.createTextRange();
-        var inputStyle = window.getComputedStyle(element);
+var getScrollLeftForInput = function getScrollLeftForInput(input) {
+    if (input.createTextRange) {
+        var range = input.createTextRange();
+        var inputStyle = window.getComputedStyle(input);
         var paddingLeft = parseFloat(inputStyle.paddingLeft);
         var rangeRect = range.getBoundingClientRect();
-        return element.getBoundingClientRect().left + element.clientLeft + paddingLeft - rangeRect.left;
+        return input.getBoundingClientRect().left + input.clientLeft + paddingLeft - rangeRect.left;
     } else {
-        return element.scrollLeft;
+        return input.scrollLeft;
     }
 };
+
 var getCursorPosition = function getCursorPosition(input) {
     var position = 0;
 
@@ -104,6 +110,23 @@ var getCursorPosition = function getCursorPosition(input) {
     }
 
     return position;
+};
+
+var getContainerTextNode = function getContainerTextNode() {
+    var selection = window.getSelection();
+    var cursorPosition = selection.focusOffset;
+    var containerTextNode = selection.focusNode;
+
+    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+        containerTextNode = containerTextNode.childNodes[cursorPosition];
+        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
+            containerTextNode = containerTextNode.firstChild;
+        }
+
+        cursorPosition = 0;
+    }
+
+    return { cursorPosition: cursorPosition, containerTextNode: containerTextNode };
 };
 
 var makeAsyncQueueRunner = function makeAsyncQueueRunner() {
@@ -362,55 +385,50 @@ var SuggestionDropdown = function () {
     return SuggestionDropdown;
 }();
 
-function getContainerTextNode(range) {
-    var cursorPosition = range.startOffset;
-    var containerTextNode = range.startContainer;
-
-    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-        cursorPosition = 0;
-        containerTextNode = containerTextNode.childNodes[range.startOffset];
-        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-            containerTextNode = containerTextNode.firstChild;
-        }
-    }
-
-    return { cursorPosition: cursorPosition, containerTextNode: containerTextNode };
+function splitValue(originalValue, cursorPosition, trigger) {
+    var value = originalValue.slice(0, cursorPosition);
+    var textAfterTrigger = value.split(trigger || /\W/).pop();
+    var textUptoTrigger = textAfterTrigger.length ? value.slice(0, 0 - textAfterTrigger.length) : value;
+    textAfterTrigger += originalValue.slice(cursorPosition);
+    return { textAfterTrigger: textAfterTrigger, textUptoTrigger: textUptoTrigger };
 }
 
-function getCaretPosition(element, cursorPosition) {
+// Invisible character
+var POSITIONER_CHARACTER = '\uFEFF';
+function getCaretPosition(element, trigger) {
     if (data(element, 'isInput')) {
-        var originalValue = element.value;
-        var value = originalValue.slice(0, cursorPosition);
+        var cursorPosition = getCursorPosition(element);
+
+        var _splitValue = splitValue(element.value, cursorPosition, trigger),
+            textAfterTrigger = _splitValue.textAfterTrigger,
+            textUptoTrigger = _splitValue.textUptoTrigger;
+
+        // pre to retain special characters
+
 
         var clone = document.createElement('pre');
         clone.id = 'autosuggest-positionclone';
 
-        //Create a clone of our input field using div and copy value into div
-        //Wrap last character in a span to get its position
         var positioner = document.createElement('span');
-        positioner.appendChild(document.createTextNode(value.slice(-1)));
+        positioner.appendChild(document.createTextNode(POSITIONER_CHARACTER));
 
-        clone.appendChild(document.createTextNode(value.slice(0, -1)));
+        clone.appendChild(document.createTextNode(textUptoTrigger.replace(/ /g, '\xA0')));
         clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(originalValue.slice(cursorPosition)));
+        clone.appendChild(document.createTextNode(textAfterTrigger.replace(/ /g, '\xA0')));
         cloneStyle(element, clone);
 
-        //Get position of element and overlap our clone on the element
         var elementPosition = getGlobalOffset(element);
-
         clone.style.opacity = 0;
         clone.style.position = 'absolute';
         clone.style.top = elementPosition.top + 'px';
         clone.style.left = elementPosition.left + 'px';
-
-        //append clone and scroll
         document.body.appendChild(clone);
 
-        //Extra styles for the clone depending on type of input
+        // Extra styles for the clone depending on type of input
         if (element.tagName === 'INPUT') {
             clone.style.overflowX = 'auto';
             clone.style.whiteSpace = 'nowrap';
-            if (cursorPosition === originalValue.length) {
+            if (cursorPosition === element.value.length) {
                 clone.scrollLeft = clone.scrollWidth - clone.clientWidth;
             } else {
                 clone.scrollLeft = Math.min(getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
@@ -422,109 +440,105 @@ function getCaretPosition(element, cursorPosition) {
             clone.scrollLeft = element.scrollLeft;
         }
 
-        //Get position of span
         var caretPosition = getGlobalOffset(positioner);
-        caretPosition.left += 10 - clone.scrollLeft;
-        caretPosition.top += 28 - clone.scrollTop;
-        document.body.removeChild(clone);
+        caretPosition.left -= clone.scrollLeft;
 
+        var charHeight = parseFloat(getComputedStyle(positioner, 'line-height'));
+        caretPosition.top += charHeight - clone.scrollTop;
+
+        document.body.removeChild(clone);
         return caretPosition;
     } else {
-        //Invisible character
-        var markerTextChar = '\uFEFF';
-        //Get the content after last trigger for showing matched results in dropdown
-        var selection = window.getSelection().getRangeAt(0);
+        var _window$getSelection$ = window.getSelection().getRangeAt(0),
+            startContainer = _window$getSelection$.startContainer,
+            startOffset = _window$getSelection$.startOffset,
+            endContainer = _window$getSelection$.endContainer,
+            endOffset = _window$getSelection$.endOffset;
 
-        var _getContainerTextNode = getContainerTextNode(selection),
+        var _getContainerTextNode = getContainerTextNode(),
             _cursorPosition = _getContainerTextNode.cursorPosition,
             containerTextNode = _getContainerTextNode.containerTextNode;
 
-        if (!containerTextNode) {
-            return null;
-        }
+        var _splitValue2 = splitValue(containerTextNode.nodeValue, _cursorPosition, trigger),
+            _textAfterTrigger = _splitValue2.textAfterTrigger,
+            _textUptoTrigger = _splitValue2.textUptoTrigger;
 
         var parentNode = containerTextNode.parentNode;
         var referenceNode = containerTextNode.nextSibling;
-        var remainingText = containerTextNode.nodeValue.slice(_cursorPosition);
-        containerTextNode.nodeValue = containerTextNode.nodeValue.slice(0, _cursorPosition);
 
-        // Create the marker element containing invisible character using DOM methods and insert it
-        var markerElement = document.createElement("span");
-        markerElement.appendChild(document.createTextNode(markerTextChar));
-        parentNode.insertBefore(markerElement, referenceNode);
+        var _positioner = document.createElement("span");
+        _positioner.appendChild(document.createTextNode(POSITIONER_CHARACTER));
+        parentNode.insertBefore(_positioner, referenceNode);
 
-        if (remainingText) {
-            var remainingTextNode = document.createTextNode(remainingText);
+        if (_textAfterTrigger) {
+            containerTextNode.nodeValue = _textUptoTrigger;
+            var remainingTextNode = document.createTextNode(_textAfterTrigger);
             parentNode.insertBefore(remainingTextNode, referenceNode);
         }
 
-        // Find markerEl position
-        var _caretPosition = getGlobalOffset(markerElement);
-        _caretPosition.left += 10;
-        _caretPosition.top += 28;
+        var _caretPosition = getGlobalOffset(_positioner);
+        var _charHeight = parseFloat(getComputedStyle(_positioner, 'line-height'));
+        _caretPosition.top += _charHeight;
 
-        parentNode.removeChild(markerElement);
-        parentNode.normalize();
+        // Reset DOM to the state before changes
+        parentNode.removeChild(_positioner);
+        if (_textAfterTrigger) {
+            parentNode.removeChild(containerTextNode.nextSibling);
+            containerTextNode.nodeValue = _textUptoTrigger + _textAfterTrigger;
+        }
 
-        selection.setStart(containerTextNode, _cursorPosition);
-        selection.collapse(true);
+        var selection = window.getSelection().getRangeAt(0);
+        selection.setStart(startContainer, startOffset);
+        selection.setEnd(endContainer, endOffset);
 
         return _caretPosition;
     }
 }
 
+var getModifiedValue = function getModifiedValue(originalValue, insertText, cursorPosition, trigger) {
+    var value = originalValue.slice(0, cursorPosition);
+    var currentValue = value.split(trigger || /\W/).pop();
+    value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
+    return value + insertText + originalValue.slice(cursorPosition);
+};
+
+var getFocusPosition = function getFocusPosition(originalValue, modifiedValue, cursorPosition, focus) {
+    var cursorStartPosition = modifiedValue.length - (originalValue.length - cursorPosition);
+    return [cursorStartPosition + focus[0], cursorStartPosition + focus[1]];
+};
+
 var setValue = function setValue(_ref) {
     var element = _ref.element,
         trigger = _ref.trigger,
-        cursorPosition = _ref.cursorPosition,
         suggestion = _ref.suggestion,
         onChange = _ref.onChange;
 
     var insertText = suggestion.use;
 
     if (data(element, 'isInput')) {
+        var cursorPosition = getCursorPosition(element);
         var originalValue = element.value;
-        var value = originalValue.slice(0, cursorPosition);
-        var currentValue = value.split(trigger || /\W/).pop();
-
-        value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
-        element.value = value + insertText + originalValue.slice(cursorPosition);
+        var modifiedValue = getModifiedValue(originalValue, insertText, cursorPosition, trigger);
+        element.value = modifiedValue;
         element.focus();
 
-        var cursorStartPosition = value.length;
-        var newCursorPositions = suggestion.focus;
-        var newPosition = cursorStartPosition + insertText.length;
-        var newPosition1 = newPosition + newCursorPositions[0];
-        var newPosition2 = newPosition + newCursorPositions[1];
-
-        element.setSelectionRange(newPosition1, newPosition2);
+        var focusPostion = getFocusPosition(originalValue, modifiedValue, cursorPosition, suggestion.focus);
+        element.setSelectionRange(focusPostion[0], focusPostion[1]);
     } else {
-        var selection = window.getSelection().getRangeAt(0);
-
-        var _getContainerTextNode2 = getContainerTextNode(selection),
+        var _getContainerTextNode2 = getContainerTextNode(),
             _cursorPosition2 = _getContainerTextNode2.cursorPosition,
             containerTextNode = _getContainerTextNode2.containerTextNode;
 
-        if (!containerTextNode) {
-            return null;
-        }
+        if (!containerTextNode) return null;
 
-        var parentNode = containerTextNode.parentNode;
         var _originalValue = containerTextNode.nodeValue;
-        var _value = _originalValue.slice(0, _cursorPosition2);
-        var _currentValue = _value.split(trigger || /\W/).pop();
+        var _modifiedValue = getModifiedValue(_originalValue, insertText, _cursorPosition2, trigger);
+        containerTextNode.nodeValue = _modifiedValue;
 
-        _value = _value.slice(0, 0 - _currentValue.length - (trigger || '').length);
-        containerTextNode.nodeValue = _value + insertText + _originalValue.slice(_cursorPosition2);
-
-        var _cursorStartPosition = _value.length;
-        var _newCursorPositions = suggestion.focus;
-        var _newPosition = _cursorStartPosition + insertText.length;
-        var _newPosition2 = _newPosition + _newCursorPositions[0];
-        var _newPosition3 = _newPosition + _newCursorPositions[1];
-
-        selection.setStart(containerTextNode, _newPosition2);
-        selection.setEnd(containerTextNode, _newPosition3);
+        var _focusPostion = getFocusPosition(_originalValue, _modifiedValue, _cursorPosition2, suggestion.focus);
+        var selection = window.getSelection().getRangeAt(0);
+        selection.setStart(containerTextNode, _focusPostion[0]);
+        selection.setEnd(containerTextNode, _focusPostion[1]);
     }
 
     onChange(suggestion.use, suggestion);
@@ -563,7 +577,6 @@ var AutoSuggest = function () {
         events: {
             var self = this;
             var activeSuggestionList = null;
-            var activeElementCursorPosition = 0;
             var handledInKeyDown = false;
 
             this.onBlurHandler = function () {
@@ -582,7 +595,6 @@ var AutoSuggest = function () {
                         setValue({
                             element: this,
                             trigger: activeSuggestionList.trigger,
-                            cursorPosition: activeElementCursorPosition,
                             suggestion: self.dropdown.getValue(),
                             onChange: self.onChange
                         });
@@ -604,28 +616,29 @@ var AutoSuggest = function () {
             this.onKeyUpHandler = function (e) {
                 var _this = this;
 
-                var selection = window.getSelection();
-                if (handledInKeyDown || !selection.isCollapsed) return;
+                if (handledInKeyDown) return;
 
                 var value = void 0;
                 if (data(this, 'isInput')) {
                     var cursorPosition = getCursorPosition(this);
-                    value = this.value.slice(0, cursorPosition);
-                    activeElementCursorPosition = cursorPosition;
-                } else {
-                    var range = selection.getRangeAt(0);
+                    if ((this.value.charAt(cursorPosition) || '').trim()) {
+                        self.dropdown.hide();
+                        return;
+                    }
 
-                    var _getContainerTextNode3 = getContainerTextNode(range),
+                    value = this.value.slice(0, cursorPosition);
+                } else {
+                    var _getContainerTextNode3 = getContainerTextNode(),
                         _cursorPosition3 = _getContainerTextNode3.cursorPosition,
                         containerTextNode = _getContainerTextNode3.containerTextNode;
 
-                    if (!containerTextNode) return;
-                    value = containerTextNode.nodeValue.slice(0, _cursorPosition3);
-                    activeElementCursorPosition = _cursorPosition3;
-                }
+                    if (!containerTextNode || (containerTextNode.nodeValue.charAt(_cursorPosition3) || '').trim()) {
+                        self.dropdown.hide();
+                        return;
+                    }
 
-                var caretPosition = getCaretPosition(this, activeElementCursorPosition);
-                if (!caretPosition) return;
+                    value = containerTextNode.nodeValue.slice(0, _cursorPosition3);
+                }
 
                 handleDropdown: {
                     (function () {
@@ -650,13 +663,12 @@ var AutoSuggest = function () {
                                                         setValue({
                                                             element: _this,
                                                             trigger: _suggestionList.trigger,
-                                                            cursorPosition: activeElementCursorPosition,
                                                             suggestion: suggestion,
                                                             onChange: self.onChange
                                                         });
                                                     });
 
-                                                    self.dropdown.show(caretPosition);
+                                                    self.dropdown.show(getCaretPosition(_this, _suggestionList.trigger));
                                                 } else {
                                                     self.dropdown.hide();
                                                 }
