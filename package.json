@@ -6,8 +6,7 @@
   "repository": "git@github.com:avcs06/autosuggest.git",
   "scripts": {
     "clean": "rimraf lib dist es",
-    "build": "npm run clean && npm run build:commonjs && npm run build:umd && npm run build:umd:min && npm run build:es && npm run build:css",
-    "build:watch": "echo 'build && watch the COMMONJS version of the package - for other version, run specific tasks' && npm run build:commonjs:watch",
+    "build": "npm run clean && npm run build:commonjs && npm run build:umd && npm run build:umd:docs && npm run build:umd:min && npm run build:es && npm run build:css",
     "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib",
     "build:commonjs:watch": "npm run build:commonjs -- --watch",
     "build:es": "cross-env BABEL_ENV=es babel src --out-dir es",
@@ -16,6 +15,7 @@
     "build:umd:watch": "npm run build:umd -- --watch",
     "build:umd:min": "cross-env BABEL_ENV=es NODE_ENV=production rollup src/AutoSuggest.js --config --output dist/AutoSuggest.min.js",
     "build:css": "cp dropdown.css dist && uglifycss dropdown.css --output dist/dropdown.min.css",
+    "watch": "npm run build:umd -- --watch",
     "prepublish": "npm run build"
   },
   "keywords": [

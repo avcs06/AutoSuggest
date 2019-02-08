@@ -77,3 +77,9 @@ export const data = (element, key, value) => {
         return typeof value !== 'undefined' ? JSON.parse(element.dataset[key]) : value;
     }
 };
+
+export const createNode = html => {
+    var div = document.createElement('div');
+    div.innerHTML = html.trim();
+    return div.firstChild; 
+}

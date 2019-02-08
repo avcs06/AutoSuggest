@@ -128,6 +128,12 @@ var data = function data(element, key, value) {
     }
 };
 
+var createNode = function createNode(html) {
+    var div = document.createElement('div');
+    div.innerHTML = html.trim();
+    return div.firstChild;
+};
+
 function validateSuggestions(suggestions) {
     return [].concat(suggestions).map(function (suggestion) {
         var type = typeof suggestion === 'undefined' ? 'undefined' : _typeof(suggestion);
@@ -289,10 +295,8 @@ var SuggestionDropdown = function () {
             var _this = this;
 
             suggestions.forEach(function (suggestion) {
-                var dropdownLinkHTML = '<li><a>' + suggestion.show + '</a></li>';
-                _this.dropdownContent.innerHTML += dropdownLinkHTML;
-
-                var dropdownLink = _this.dropdownContent.lastElementChild;
+                var dropdownLink = createNode('<li><a>' + suggestion.show + '</a></li>');
+                _this.dropdownContent.append(dropdownLink);
                 data(dropdownLink, 'suggestion', suggestion);
 
                 dropdownLink.addEventListener('mouseenter', function () {
@@ -344,8 +348,6 @@ var SuggestionDropdown = function () {
 
             activeLink.classList.remove('active');
             nextLink.classList.add('active');
-
-            return this.getValue(nextLink);
         }
     }, {
         key: 'selectPrev',
@@ -355,8 +357,6 @@ var SuggestionDropdown = function () {
 
             activeLink.classList.remove('active');
             prevLink.classList.add('active');
-
-            return this.getValue(prevLink);
         }
     }]);
     return SuggestionDropdown;

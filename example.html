@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Auto Suggest</title>
+    <meta name="description" content="AutoSuggest">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400" rel="stylesheet">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="dropdown.css" rel="stylesheet">
+
+    <style type="text/css">
+        html {
+            height: 100%;
+        }
+
+        body {
+            background: #f0f0f0;
+            color: #464646;
+            padding: 15px 10px;
+            height: 100%;
+            font-family: 'Source Sans Pro';
+        }
+
+        #root {
+            background: #fff;
+            box-shadow: 0 1px 1px #bababa;
+            padding: 10px 20px 30px;
+            width: 640px;
+            margin: auto;
+        }
+
+        .heading {
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 40px;
+        }
+
+        .heading small {
+            float: right;
+            position: relative;
+            bottom: -20px;
+            font-size: 50%;
+        }
+
+        #input,
+        #textarea,
+        #contenteditable {
+            border-radius: 0;
+            line-height: 20px;
+        }
+
+        #contenteditable {
+            height: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root">
+        <h3 class="subheading">Input Demo</h3>
+        <input type="text" id="input" class="form-control" />
+        <h3 class="subheading">Textarea Demo</h3>
+        <textarea id="textarea" class="form-control" rows="4"></textarea>
+        <h3 class="subheading">Contenteditable Demo</h3>
+        <div contenteditable="true" id="contenteditable" class="form-control"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"></script>
+    <script src="./dist/AutoSuggest.js"></script>
+    <script type="text/javascript">
+        const instance = new AutoSuggest({
+            suggestions: [
+                {
+                    trigger: '<',
+                    values: [
+                        {
+                            value: 'script',
+                            use: '<script type="text/javascript" src="path/to/jsfile"><\/script>',
+                            focus: [-25, -11]
+                        },
+                        {
+                            value: 'link',
+                            use: '<link href="path/to/cssfile" rel="stylesheet" \/>',
+                            focus: [-36, -21]
+                        }
+                    ]
+                }, {
+                    trigger: '@',
+                    values: [
+                        {
+                            on: ['avcs', 'cham', 'chandu'],
+                            show: 'Chandrasekhar Ambula V',
+                            use: '@AmbulaV'
+                        },
+                        {
+                            on: ['pj'],
+                            show: 'Peter John',
+                            use: '@John'
+                        }
+                    ]
+                }, {
+                    trigger: '//',
+                    caseSensitive: true,
+                    values: ['hello', 'world', 'idiot', 'peter', 'pro', 'avcs']
+                }, function(keyword, callback) {
+                    keyword = keyword.toLowerCase();
+
+                    var results = [];
+                    var dataset = $('#input').val() + $('#textarea').val();
+                    dataset = dataset.toLowerCase().split(/s+/);
+                    dataset.forEach(function(word) {
+                        if (
+                            word.length >= 4 &&
+                            !word.indexOf(keyword) &&
+                            word !== keyword &&
+                            results.indexOf(word) === -1
+                        ) {
+                            results.push(word);
+                        }
+                    });
+                    callback(results);
+                }
+            ]
+        }, $('#input'), $('#textarea'), $('#contenteditable')[0]);
+    </script>
+</body>
+
+</html>

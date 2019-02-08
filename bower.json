@@ -23,6 +23,7 @@
     "lib",
     "node_modules",
     "bower_components",
-    "rollup.config.js"
+    "rollup.config.js",
+    "example.html"
   ]
 }

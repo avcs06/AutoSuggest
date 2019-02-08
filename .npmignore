@@ -1,6 +1,7 @@
 dist
-rollup.config.js
+example.html
 bower.json
+rollup.config.js
 
 .babelrc
 .eslintignore

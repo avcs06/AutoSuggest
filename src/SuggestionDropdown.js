@@ -1,4 +1,4 @@
-import { data } from './Utilities';
+import { data, createNode } from './Utilities';
 
 class SuggestionDropdown {
     constructor() {
@@ -52,10 +52,8 @@ class SuggestionDropdown {
 
     fill(suggestions, onSet) {
         suggestions.forEach(suggestion => {
-            const dropdownLinkHTML = `<li><a>${suggestion.show}</a></li>`;
-            this.dropdownContent.innerHTML += dropdownLinkHTML;
-
-            const dropdownLink = this.dropdownContent.lastElementChild;
+            const dropdownLink = createNode(`<li><a>${suggestion.show}</a></li>`);
+            this.dropdownContent.append(dropdownLink);
             data(dropdownLink, 'suggestion', suggestion);
 
             dropdownLink.addEventListener('mouseenter', () => {
@@ -105,8 +103,6 @@ class SuggestionDropdown {
 
         activeLink.classList.remove('active');
         nextLink.classList.add('active');
-
-        return this.getValue(nextLink);
     }
 
     selectPrev() {
@@ -115,8 +111,6 @@ class SuggestionDropdown {
 
         activeLink.classList.remove('active');
         prevLink.classList.add('active');
-
-        return this.getValue(prevLink);
     }
 }
 
