@@ -1,5 +1,6 @@
 dist
 rollup.config.js
+bower.json
 
 .babelrc
 .eslintignore
