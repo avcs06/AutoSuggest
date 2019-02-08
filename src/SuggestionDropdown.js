@@ -83,7 +83,6 @@ class SuggestionDropdown {
         this.isEmpty = false;
     }
 
-
     getActive() {
         const activeLinks = Array.prototype.slice.call(this.dropdownContent.querySelectorAll('li.active'), 0);
         while (activeLinks[1]) {

@@ -30,6 +30,8 @@ Setting it to `true` will show suggestions only if the case of search value matc
 **`maxSuggestions`**: `Number` *(default: `10`)*  
 Maximum number of suggestions to be shown in the dropdown, suggestions will be taken from the top of SuggestionList.
 
+**`onChange`**: `Function<insertedValue, Suggestion>` *(optional)*
+
 **`suggestions`**: `Array<SuggestionList | Object<Options for SuggestionList>>` *(default: `[]`)*
 
 ### Methods

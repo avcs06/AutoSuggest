@@ -477,7 +477,8 @@ var setValue = function setValue(_ref) {
     var element = _ref.element,
         trigger = _ref.trigger,
         cursorPosition = _ref.cursorPosition,
-        suggestion = _ref.suggestion;
+        suggestion = _ref.suggestion,
+        onChange = _ref.onChange;
 
     var insertText = suggestion.use;
 
@@ -525,6 +526,8 @@ var setValue = function setValue(_ref) {
         selection.setStart(containerTextNode, _newPosition2);
         selection.setEnd(containerTextNode, _newPosition3);
     }
+
+    onChange(suggestion.use, suggestion);
 };
 
 var AutoSuggest = function () {
@@ -537,6 +540,7 @@ var AutoSuggest = function () {
 
         this.inputs = [];
         this.dropdown = new SuggestionDropdown();
+        this.onChange = options.onChange || Function.prototype;
         this.maxSuggestions = options.maxSuggestions || 10;
 
         // validate suggestions
@@ -579,7 +583,8 @@ var AutoSuggest = function () {
                             element: this,
                             trigger: activeSuggestionList.trigger,
                             cursorPosition: activeElementCursorPosition,
-                            suggestion: self.dropdown.getValue()
+                            suggestion: self.dropdown.getValue(),
+                            onChange: self.onChange
                         });
                         self.dropdown.hide();
                         return preventDefaultAction();
@@ -646,7 +651,8 @@ var AutoSuggest = function () {
                                                             element: _this,
                                                             trigger: _suggestionList.trigger,
                                                             cursorPosition: activeElementCursorPosition,
-                                                            suggestion: suggestion
+                                                            suggestion: suggestion,
+                                                            onChange: self.onChange
                                                         });
                                                     });
 

@@ -117,7 +117,7 @@ function getCaretPosition(element, cursorPosition) {
     }
 }
 
-const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
+const setValue = ({ element, trigger, cursorPosition, suggestion, onChange }) => {
     const insertText = suggestion.use;
 
     if (data(element, 'isInput')) {
@@ -160,6 +160,8 @@ const setValue = ({ element, trigger, cursorPosition, suggestion }) => {
         selection.setStart(containerTextNode, newPosition1);
         selection.setEnd(containerTextNode, newPosition2);
     }
+
+    onChange(suggestion.use, suggestion);
 };
 
 class AutoSuggest {
@@ -170,6 +172,7 @@ class AutoSuggest {
 
         this.inputs = [];
         this.dropdown = new SuggestionDropdown();
+        this.onChange = options.onChange || Function.prototype;
         this.maxSuggestions = options.maxSuggestions || 10;
 
         // validate suggestions
@@ -212,7 +215,8 @@ class AutoSuggest {
                             element: this,
                             trigger: activeSuggestionList.trigger,
                             cursorPosition: activeElementCursorPosition,
-                            suggestion: self.dropdown.getValue()
+                            suggestion: self.dropdown.getValue(),
+                            onChange: self.onChange
                         });
                         self.dropdown.hide();
                         return preventDefaultAction();
@@ -273,6 +277,7 @@ class AutoSuggest {
                                                             trigger: suggestionList.trigger,
                                                             cursorPosition: activeElementCursorPosition,
                                                             suggestion: suggestion,
+                                                            onChange: self.onChange
                                                         });
                                                     }
                                                 );
