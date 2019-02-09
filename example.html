@@ -123,7 +123,10 @@
                             results.push(word);
                         }
                     });
-                    callback(results);
+
+                    setTimeout(() => {
+                        callback(results);
+                    }, 1000);
                 }
             ]
         }, $('#input'), $('#textarea'), $('#contenteditable')[0]);

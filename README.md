@@ -7,6 +7,11 @@ A JavaScript plugin to implement IDE like autocompletion in input, textarea or c
 npm i @avcs/autosuggest --save
 ```
 
+*As bower component*
+```bash
+bower install avcs-autosuggest --save
+```
+
 *As standalone JavaScript plugin*
 ```html
 <script type="text/javascript" src="@avcs/autosuggest/dist/AutoSuggest.js"></script>
@@ -30,7 +35,7 @@ Setting it to `true` will show suggestions only if the case of search value matc
 **`maxSuggestions`**: `Number` *(default: `10`)*  
 Maximum number of suggestions to be shown in the dropdown, suggestions will be taken from the top of SuggestionList.
 
-**`onChange`**: `Function<insertedValue, Suggestion>` *(optional)*
+**`onChange`**: `Function<element, Suggestion>` *(optional)*
 
 **`suggestions`**: `Array<SuggestionList | Object<Options for SuggestionList>>` *(default: `[]`)*
 

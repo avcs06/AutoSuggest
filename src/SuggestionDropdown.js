@@ -32,10 +32,6 @@ class SuggestionDropdown {
             }
         }
 
-        const activeElement = this.getActive();
-        activeElement && activeElement.classList.remove('active');
-        this.dropdownContent.firstElementChild.classList.add('active');
-
         this.dropdown.style.display = 'block';
         this.isActive = true;
     }
@@ -51,6 +47,7 @@ class SuggestionDropdown {
     }
 
     fill(suggestions, onSet) {
+        this.empty();
         suggestions.forEach(suggestion => {
             const dropdownLink = createNode(`<li><a>${suggestion.show}</a></li>`);
             this.dropdownContent.append(dropdownLink);
@@ -80,7 +77,14 @@ class SuggestionDropdown {
             this.hide();
         }
 
+        this.setActive();
         this.isEmpty = false;
+    }
+
+    showLoader(position) {
+        this.empty();
+        this.dropdownContent.innerHTML = '<div class="autosuggest-loader">Loading...</div>';
+        this.show(position);
     }
 
     getActive() {
@@ -96,20 +100,21 @@ class SuggestionDropdown {
         return data((element || this.getActive()), 'suggestion');
     }
 
+    setActive(element = this.dropdownContent.firstElementChild, activeLink) {
+        activeLink && activeLink.classList.remove('active');
+        element.classList.add('active');
+    }
+
     selectNext() {
         const activeLink = this.getActive();
         const nextLink = activeLink.nextElementSibling || this.dropdownContent.firstElementChild;
-
-        activeLink.classList.remove('active');
-        nextLink.classList.add('active');
+        this.setActive(nextLink, activeLink);
     }
 
     selectPrev() {
         const activeLink = this.getActive();
         const prevLink = activeLink.previousElementSibling || this.dropdownContent.lastElementChild;
-
-        activeLink.classList.remove('active');
-        prevLink.classList.add('active');
+        this.setActive(prevLink, activeLink);
     }
 }
 

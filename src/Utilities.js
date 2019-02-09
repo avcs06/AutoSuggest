@@ -82,11 +82,17 @@ export const getContainerTextNode = () => {
 
 export const makeAsyncQueueRunner = () => {
     let i = 0;
-    const queue = [];
+    let queue = [];
 
-    return (f, j) => {
-        queue[j - i] = f;
-        while (queue[0]) ++i, queue.shift()();
+    return {
+        resetQueue: () => {
+            i = 0;
+            queue = [];
+        },
+        executeQueue: (f, j) => {
+            queue[j - i] = f;
+            while (queue[0]) ++i, queue.shift()();
+        }
     };
 };
 

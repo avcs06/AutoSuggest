@@ -144,7 +144,7 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
         selection.setEnd(containerTextNode, focusPostion[1]);
     }
 
-    onChange(suggestion.use, suggestion);
+    onChange(element, suggestion);
 };
 
 class AutoSuggest {
@@ -214,6 +214,8 @@ class AutoSuggest {
                 }
             };
 
+            let keyUpIndex = 0;
+            const { resetQueue, executeQueue } = makeAsyncQueueRunner();
             this.onKeyUpHandler = function(e) {
                 if (handledInKeyDown) return;
 
@@ -237,18 +239,31 @@ class AutoSuggest {
                 }
 
                 handleDropdown: {
-                    let i = 0, triggerMatchFound = false;
-                    const execute = makeAsyncQueueRunner();
-
+                    keyUpIndex++;
+                    resetQueue();
                     self.dropdown.empty();
+
+                    let i = 0, timer, triggerMatchFound = false;
                     for (let suggestionList of self.suggestionLists) {
                         if (suggestionList.regex.test(value)) {
                             triggerMatchFound = true;
 
-                            (i => {
+                            ((i, asyncReference) => {
                                 const match = suggestionList.getMatch(value);
+                                const caretPosition = getCaretPosition(this, suggestionList.trigger);
+
+                                if (self.dropdown.isEmpty) {
+                                    timer && clearTimeout(timer);
+                                    timer = setTimeout(() => {
+                                        self.dropdown.showLoader(caretPosition);
+                                    }, 0);
+                                }
+
                                 suggestionList.getSuggestions(match, results => {
-                                    execute(() => {
+                                    if (asyncReference !== keyUpIndex) return;
+
+                                    executeQueue(() => {
+                                        timer && clearTimeout(timer);
                                         if (self.dropdown.isEmpty) {
                                             if (results.length) {
                                                 activeSuggestionList = suggestionList;
@@ -264,14 +279,14 @@ class AutoSuggest {
                                                     }
                                                 );
 
-                                                self.dropdown.show(getCaretPosition(this, suggestionList.trigger));
+                                                self.dropdown.show(caretPosition);
                                             } else {
                                                 self.dropdown.hide();
                                             }
                                         }
                                     }, i);
                                 });
-                            })(i++);
+                            })(i++, keyUpIndex);
                         }
                     }
 

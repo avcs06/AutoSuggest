@@ -133,10 +133,16 @@ var makeAsyncQueueRunner = function makeAsyncQueueRunner() {
     var i = 0;
     var queue = [];
 
-    return function (f, j) {
-        queue[j - i] = f;
-        while (queue[0]) {
-            ++i, queue.shift()();
+    return {
+        resetQueue: function resetQueue() {
+            i = 0;
+            queue = [];
+        },
+        executeQueue: function executeQueue(f, j) {
+            queue[j - i] = f;
+            while (queue[0]) {
+                ++i, queue.shift()();
+            }
         }
     };
 };
@@ -293,10 +299,6 @@ var SuggestionDropdown = function () {
                 }
             }
 
-            var activeElement = this.getActive();
-            activeElement && activeElement.classList.remove('active');
-            this.dropdownContent.firstElementChild.classList.add('active');
-
             this.dropdown.style.display = 'block';
             this.isActive = true;
         }
@@ -317,6 +319,7 @@ var SuggestionDropdown = function () {
         value: function fill(suggestions, onSet) {
             var _this = this;
 
+            this.empty();
             suggestions.forEach(function (suggestion) {
                 var dropdownLink = createNode('<li><a>' + suggestion.show + '</a></li>');
                 _this.dropdownContent.append(dropdownLink);
@@ -346,7 +349,15 @@ var SuggestionDropdown = function () {
                 this.hide();
             }
 
+            this.setActive();
             this.isEmpty = false;
+        }
+    }, {
+        key: 'showLoader',
+        value: function showLoader(position) {
+            this.empty();
+            this.dropdownContent.innerHTML = '<div class="autosuggest-loader">Loading...</div>';
+            this.show(position);
         }
     }, {
         key: 'getActive',
@@ -364,22 +375,27 @@ var SuggestionDropdown = function () {
             return data(element || this.getActive(), 'suggestion');
         }
     }, {
+        key: 'setActive',
+        value: function setActive() {
+            var element = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : this.dropdownContent.firstElementChild;
+            var activeLink = arguments[1];
+
+            activeLink && activeLink.classList.remove('active');
+            element.classList.add('active');
+        }
+    }, {
         key: 'selectNext',
         value: function selectNext() {
             var activeLink = this.getActive();
             var nextLink = activeLink.nextElementSibling || this.dropdownContent.firstElementChild;
-
-            activeLink.classList.remove('active');
-            nextLink.classList.add('active');
+            this.setActive(nextLink, activeLink);
         }
     }, {
         key: 'selectPrev',
         value: function selectPrev() {
             var activeLink = this.getActive();
             var prevLink = activeLink.previousElementSibling || this.dropdownContent.lastElementChild;
-
-            activeLink.classList.remove('active');
-            prevLink.classList.add('active');
+            this.setActive(prevLink, activeLink);
         }
     }]);
     return SuggestionDropdown;
@@ -541,7 +557,7 @@ var setValue = function setValue(_ref) {
         selection.setEnd(containerTextNode, _focusPostion[1]);
     }
 
-    onChange(suggestion.use, suggestion);
+    onChange(element, suggestion);
 };
 
 var AutoSuggest = function () {
@@ -613,6 +629,12 @@ var AutoSuggest = function () {
                 }
             };
 
+            var keyUpIndex = 0;
+
+            var _makeAsyncQueueRunner = makeAsyncQueueRunner(),
+                resetQueue = _makeAsyncQueueRunner.resetQueue,
+                executeQueue = _makeAsyncQueueRunner.executeQueue;
+
             this.onKeyUpHandler = function (e) {
                 var _this = this;
 
@@ -642,20 +664,34 @@ var AutoSuggest = function () {
 
                 handleDropdown: {
                     (function () {
-                        var i = 0,
-                            triggerMatchFound = false;
-                        var execute = makeAsyncQueueRunner();
-
+                        keyUpIndex++;
+                        resetQueue();
                         self.dropdown.empty();
+
+                        var i = 0,
+                            timer = void 0,
+                            triggerMatchFound = false;
 
                         var _loop = function _loop(_suggestionList) {
                             if (_suggestionList.regex.test(value)) {
                                 triggerMatchFound = true;
 
-                                (function (i) {
+                                (function (i, asyncReference) {
                                     var match = _suggestionList.getMatch(value);
+                                    var caretPosition = getCaretPosition(_this, _suggestionList.trigger);
+
+                                    if (self.dropdown.isEmpty) {
+                                        timer && clearTimeout(timer);
+                                        timer = setTimeout(function () {
+                                            self.dropdown.showLoader(caretPosition);
+                                        }, 0);
+                                    }
+
                                     _suggestionList.getSuggestions(match, function (results) {
-                                        execute(function () {
+                                        if (asyncReference !== keyUpIndex) return;
+
+                                        executeQueue(function () {
+                                            timer && clearTimeout(timer);
                                             if (self.dropdown.isEmpty) {
                                                 if (results.length) {
                                                     activeSuggestionList = _suggestionList;
@@ -668,14 +704,14 @@ var AutoSuggest = function () {
                                                         });
                                                     });
 
-                                                    self.dropdown.show(getCaretPosition(_this, _suggestionList.trigger));
+                                                    self.dropdown.show(caretPosition);
                                                 } else {
                                                     self.dropdown.hide();
                                                 }
                                             }
                                         }, i);
                                     });
-                                })(i++);
+                                })(i++, keyUpIndex);
                             }
                         };
 

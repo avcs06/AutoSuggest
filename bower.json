@@ -2,8 +2,8 @@
   "name": "avcs-autosuggest",
   "description": "A JavaScript plugin to implement IDE like autocompletion in input, textarea or contenteditable fields.",
   "main": [
-    "dist/AutoSuggest.min.js",
-    "dist/dropdown.min.css"
+    "dist/AutoSuggest.js",
+    "dist/dropdown.css"
   ],
   "authors": [
     "AvcS"
