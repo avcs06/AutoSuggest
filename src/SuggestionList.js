@@ -76,7 +76,7 @@ function SuggestionList(options) {
                 options.values.filter(value => {
                     let matchFound = false;
                     for (let i = 0; i < value.on.length; i++) {
-                        if (matchFound = matcher.test(value.on[i])) {
+                        if (value.on[i] !== keyword && (matchFound = matcher.test(value.on[i]))) {
                             break;
                         }
                     }

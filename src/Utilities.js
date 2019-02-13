@@ -49,36 +49,32 @@ export const getScrollLeftForInput = input => {
 };
 
 export const getCursorPosition = input => {
-    let position = 0;
-
-    if (typeof input.selectionDirection !== 'undefined') {
-        position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
-    } else if (document.selection) {
-        input.focus();
-        const selection = document.selection.createRange();
-        selection.moveStart('character', - input.value.length);
-        position = selection.text.length;
-    }
-
-    return position;
+    return [input.selectionStart, input.selectionEnd].sort((a, b) => a - b);
 };
 
-export const getContainerTextNode = () => {
-    const selection = window.getSelection();
-    let cursorPosition = selection.focusOffset;
-    let containerTextNode = selection.focusNode;
+export const getSelectedTextNodes = () => {
+    const range = window.getSelection().getRangeAt(0);
 
-    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-        containerTextNode = containerTextNode.childNodes[cursorPosition];
-        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-            containerTextNode = containerTextNode.firstChild;
+    let { startContainer, startOffset } = range;
+    if (startContainer.nodeType !== startContainer.TEXT_NODE) {
+        startContainer = startContainer.childNodes[startOffset];
+        while (startContainer && startContainer.nodeType !== startContainer.TEXT_NODE) {
+            startContainer = startContainer.firstChild;
         }
-
-        cursorPosition = 0;
+        startOffset = 0;
     }
 
-    return { cursorPosition, containerTextNode };
-}
+    let { endContainer, endOffset } = range;
+    if (endContainer.nodeType !== endContainer.TEXT_NODE) {
+        endContainer = endContainer.childNodes[endOffset];
+        while (endContainer && endContainer.nodeType !== endContainer.TEXT_NODE) {
+            endContainer = endContainer.lastChild;
+        }
+        endOffset = endContainer ? endContainer.nodeValue.length : endContainer;
+    }
+
+    return { startContainer, startOffset, endContainer, endOffset };
+};
 
 export const makeAsyncQueueRunner = () => {
     let i = 0;

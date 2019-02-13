@@ -4,7 +4,7 @@ import {
     getCursorPosition,
     getScrollLeftForInput,
     makeAsyncQueueRunner,
-    getContainerTextNode,
+    getSelectedTextNodes,
     getComputedStyle
 } from './Utilities';
 
@@ -23,7 +23,7 @@ function splitValue(originalValue, cursorPosition, trigger) {
 const POSITIONER_CHARACTER = "\ufeff";
 function getCaretPosition(element, trigger) {
     if (data(element, 'isInput')) {
-        const cursorPosition = getCursorPosition(element);
+        const [cursorPosition] = getCursorPosition(element);
         const { textAfterTrigger, textUptoTrigger } = splitValue(element.value, cursorPosition, trigger);
 
         // pre to retain special characters
@@ -71,7 +71,7 @@ function getCaretPosition(element, trigger) {
         return caretPosition;
     } else {
         const { startContainer, startOffset, endContainer, endOffset } = window.getSelection().getRangeAt(0);
-        const { cursorPosition, containerTextNode } = getContainerTextNode();
+        const { startContainer: containerTextNode, startOffset: cursorPosition } = getSelectedTextNodes();
         const { textAfterTrigger, textUptoTrigger } = splitValue(containerTextNode.nodeValue, cursorPosition, trigger);
 
         const parentNode = containerTextNode.parentNode;
@@ -106,42 +106,48 @@ function getCaretPosition(element, trigger) {
     }
 }
 
-const getModifiedValue = (originalValue, insertText, cursorPosition, trigger) => {
-    let value = originalValue.slice(0, cursorPosition);
-    const currentValue = value.split(trigger || /\W/).pop();
-    value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
-    return value + insertText + originalValue.slice(cursorPosition);
-};
-
-const getFocusPosition = (originalValue, modifiedValue, cursorPosition, focus) => {
-    const cursorStartPosition = modifiedValue.length - (originalValue.length - cursorPosition);
-    return [cursorStartPosition + focus[0], cursorStartPosition + focus[1]];
+const getNextNode = node => {
+    let nextNode = node.nextSibling || node.parentNode.nextSibling;
+    while (nextNode.firstChild) nextNode = nextNode.firstChild;
+    return nextNode;
 };
 
 const setValue = ({ element, trigger, suggestion, onChange }) => {
     const insertText = suggestion.use;
+    const focus = suggestion.focus;
 
     if (data(element, 'isInput')) {
-        const cursorPosition = getCursorPosition(element);
+        const [startPosition, endPosition] = getCursorPosition(element);
         const originalValue = element.value;
-        const modifiedValue = getModifiedValue(originalValue, insertText, cursorPosition, trigger);
-        element.value = modifiedValue;
+        let value = originalValue.slice(0, startPosition);
+        const currentValue = value.split(trigger || /\W/).pop();
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + insertText;
+        element.value = value + originalValue.slice(endPosition);
         element.focus();
 
-        const focusPostion = getFocusPosition(originalValue, modifiedValue, cursorPosition, suggestion.focus);
-        element.setSelectionRange(focusPostion[0], focusPostion[1]);
+        const cursorStartPosition = value.length;
+        element.setSelectionRange(cursorStartPosition + focus[0], cursorStartPosition + focus[1]);
     } else {
-        const { cursorPosition, containerTextNode } = getContainerTextNode();
-        if (!containerTextNode) return null;
+        const { startContainer, startOffset, endContainer, endOffset } = getSelectedTextNodes();
+        let value = startContainer.nodeValue.slice(0, startOffset);
+        const currentValue = value.split(trigger || /\W/).pop();
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + insertText;
+        startContainer.nodeValue = value + endContainer.nodeValue.slice(endOffset);
 
-        const originalValue = containerTextNode.nodeValue;
-        const modifiedValue = getModifiedValue(originalValue, insertText, cursorPosition, trigger);
-        containerTextNode.nodeValue = modifiedValue;
+        let node = startContainer;
+        if (node !== endContainer) {
+            node = getNextNode(startContainer);
+        }
+        while (node !== endContainer) {
+            node.parentNode.removeChild(node);
+            node = getNextNode(startContainer);
+        }
+        endContainer.parentNode.removeChild(endContainer);
 
-        const focusPostion = getFocusPosition(originalValue, modifiedValue, cursorPosition, suggestion.focus);
+        const cursorStartPosition = value.length;
         const selection = window.getSelection().getRangeAt(0);
-        selection.setStart(containerTextNode, focusPostion[0]);
-        selection.setEnd(containerTextNode, focusPostion[1]);
+        selection.setStart(startContainer, cursorStartPosition + focus[0]);
+        selection.setEnd(startContainer, cursorStartPosition + focus[1]);
     }
 
     onChange(element, suggestion);
@@ -215,29 +221,29 @@ class AutoSuggest {
             };
 
             let keyUpIndex = 0;
-            this.onKeyUpHandler = function(e) {
+            this.onKeyUpHandler = function() {
                 if (handledInKeyDown) return;
 
                 let value;
                 if (data(this, 'isInput')) {
-                    const cursorPosition = getCursorPosition(this);
-                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(cursorPosition) || ' ')) {
+                    const [startPosition, endPosition] = getCursorPosition(this);
+                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(endPosition) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
 
-                    value = this.value.slice(0, cursorPosition);
+                    value = this.value.slice(0, startPosition);
                 } else {
-                    const { cursorPosition, containerTextNode } = getContainerTextNode();
+                    const { startContainer, startOffset, endContainer, endOffset } = getSelectedTextNodes();
                     if (
-                        !containerTextNode ||
-                        /[a-zA-Z_0-9]/.test(containerTextNode.nodeValue.charAt(cursorPosition) || ' ')
+                        !startContainer || !endContainer ||
+                        /[a-zA-Z_0-9]/.test(endContainer.nodeValue.charAt(endOffset) || ' ')
                     ) {
                         self.dropdown.hide();
                         return;
                     }
 
-                    value = containerTextNode.nodeValue.slice(0, cursorPosition);
+                    value = startContainer.nodeValue.slice(0, startOffset);
                 }
 
                 handleDropdown: {
@@ -319,6 +325,7 @@ class AutoSuggest {
             // init events
             input.addEventListener('blur', this.onBlurHandler);
             input.addEventListener('keyup', this.onKeyUpHandler);
+            input.addEventListener('click', this.onKeyUpHandler);
             input.addEventListener('keydown', this.onKeyDownHandler, true);
 
             data(input, 'index', this.inputs.push(input) - 1);
@@ -336,6 +343,7 @@ class AutoSuggest {
                 // destroy events
                 input.removeEventListener('blur', this.onBlurHandler);
                 input.removeEventListener('keyup', this.onKeyUpHandler);
+                input.removeEventListener('click', this.onKeyUpHandler);
                 input.removeEventListener('keydown', this.onKeyDownHandler, true);
             }
         });

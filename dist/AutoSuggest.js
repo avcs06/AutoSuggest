@@ -44,6 +44,70 @@ var createClass = function () {
   };
 }();
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var slicedToArray = function () {
+  function sliceIterator(arr, i) {
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+    var _e = undefined;
+
+    try {
+      for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
+        _arr.push(_s.value);
+
+        if (i && _arr.length === i) break;
+      }
+    } catch (err) {
+      _d = true;
+      _e = err;
+    } finally {
+      try {
+        if (!_n && _i["return"]) _i["return"]();
+      } finally {
+        if (_d) throw _e;
+      }
+    }
+
+    return _arr;
+  }
+
+  return function (arr, i) {
+    if (Array.isArray(arr)) {
+      return arr;
+    } else if (Symbol.iterator in Object(arr)) {
+      return sliceIterator(arr, i);
+    } else {
+      throw new TypeError("Invalid attempt to destructure non-iterable instance");
+    }
+  };
+}();
+
 var ensure = function ensure(context, object, keys) {
     [].concat(keys).forEach(function (key) {
         if (typeof object[key] === 'undefined') {
@@ -98,35 +162,37 @@ var getScrollLeftForInput = function getScrollLeftForInput(input) {
 };
 
 var getCursorPosition = function getCursorPosition(input) {
-    var position = 0;
-
-    if (typeof input.selectionDirection !== 'undefined') {
-        position = input.selectionDirection === 'backward' ? input.selectionStart : input.selectionEnd;
-    } else if (document.selection) {
-        input.focus();
-        var selection = document.selection.createRange();
-        selection.moveStart('character', -input.value.length);
-        position = selection.text.length;
-    }
-
-    return position;
+    return [input.selectionStart, input.selectionEnd].sort(function (a, b) {
+        return a - b;
+    });
 };
 
-var getContainerTextNode = function getContainerTextNode() {
-    var selection = window.getSelection();
-    var cursorPosition = selection.focusOffset;
-    var containerTextNode = selection.focusNode;
+var getSelectedTextNodes = function getSelectedTextNodes() {
+    var range = window.getSelection().getRangeAt(0);
 
-    if (containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-        containerTextNode = containerTextNode.childNodes[cursorPosition];
-        while (containerTextNode && containerTextNode.nodeType !== containerTextNode.TEXT_NODE) {
-            containerTextNode = containerTextNode.firstChild;
+    var startContainer = range.startContainer,
+        startOffset = range.startOffset;
+
+    if (startContainer.nodeType !== startContainer.TEXT_NODE) {
+        startContainer = startContainer.childNodes[startOffset];
+        while (startContainer && startContainer.nodeType !== startContainer.TEXT_NODE) {
+            startContainer = startContainer.firstChild;
         }
-
-        cursorPosition = 0;
+        startOffset = 0;
     }
 
-    return { cursorPosition: cursorPosition, containerTextNode: containerTextNode };
+    var endContainer = range.endContainer,
+        endOffset = range.endOffset;
+
+    if (endContainer.nodeType !== endContainer.TEXT_NODE) {
+        endContainer = endContainer.childNodes[endOffset];
+        while (endContainer && endContainer.nodeType !== endContainer.TEXT_NODE) {
+            endContainer = endContainer.lastChild;
+        }
+        endOffset = endContainer ? endContainer.nodeValue.length : endContainer;
+    }
+
+    return { startContainer: startContainer, startOffset: startOffset, endContainer: endContainer, endOffset: endOffset };
 };
 
 var makeAsyncQueueRunner = function makeAsyncQueueRunner() {
@@ -234,7 +300,7 @@ function SuggestionList(options) {
             callback(options.values.filter(function (value) {
                 var matchFound = false;
                 for (var i = 0; i < value.on.length; i++) {
-                    if (matchFound = matcher.test(value.on[i])) {
+                    if (value.on[i] !== keyword && (matchFound = matcher.test(value.on[i]))) {
                         break;
                     }
                 }
@@ -407,7 +473,9 @@ function splitValue(originalValue, cursorPosition, trigger) {
 var POSITIONER_CHARACTER = '\uFEFF';
 function getCaretPosition(element, trigger) {
     if (data(element, 'isInput')) {
-        var cursorPosition = getCursorPosition(element);
+        var _getCursorPosition = getCursorPosition(element),
+            _getCursorPosition2 = slicedToArray(_getCursorPosition, 1),
+            cursorPosition = _getCursorPosition2[0];
 
         var _splitValue = splitValue(element.value, cursorPosition, trigger),
             textAfterTrigger = _splitValue.textAfterTrigger,
@@ -465,9 +533,9 @@ function getCaretPosition(element, trigger) {
             endContainer = _window$getSelection$.endContainer,
             endOffset = _window$getSelection$.endOffset;
 
-        var _getContainerTextNode = getContainerTextNode(),
-            _cursorPosition = _getContainerTextNode.cursorPosition,
-            containerTextNode = _getContainerTextNode.containerTextNode;
+        var _getSelectedTextNodes = getSelectedTextNodes(),
+            containerTextNode = _getSelectedTextNodes.startContainer,
+            _cursorPosition = _getSelectedTextNodes.startOffset;
 
         var _splitValue2 = splitValue(containerTextNode.nodeValue, _cursorPosition, trigger),
             _textAfterTrigger = _splitValue2.textAfterTrigger,
@@ -505,16 +573,11 @@ function getCaretPosition(element, trigger) {
     }
 }
 
-var getModifiedValue = function getModifiedValue(originalValue, insertText, cursorPosition, trigger) {
-    var value = originalValue.slice(0, cursorPosition);
-    var currentValue = value.split(trigger || /\W/).pop();
-    value = value.slice(0, 0 - currentValue.length - (trigger || '').length);
-    return value + insertText + originalValue.slice(cursorPosition);
-};
-
-var getFocusPosition = function getFocusPosition(originalValue, modifiedValue, cursorPosition, focus) {
-    var cursorStartPosition = modifiedValue.length - (originalValue.length - cursorPosition);
-    return [cursorStartPosition + focus[0], cursorStartPosition + focus[1]];
+var getNextNode = function getNextNode(node) {
+    var nextNode = node.nextSibling || node.parentNode.nextSibling;
+    while (nextNode.firstChild) {
+        nextNode = nextNode.firstChild;
+    }return nextNode;
 };
 
 var setValue = function setValue(_ref) {
@@ -524,31 +587,49 @@ var setValue = function setValue(_ref) {
         onChange = _ref.onChange;
 
     var insertText = suggestion.use;
+    var focus = suggestion.focus;
 
     if (data(element, 'isInput')) {
-        var cursorPosition = getCursorPosition(element);
+        var _getCursorPosition3 = getCursorPosition(element),
+            _getCursorPosition4 = slicedToArray(_getCursorPosition3, 2),
+            startPosition = _getCursorPosition4[0],
+            endPosition = _getCursorPosition4[1];
+
         var originalValue = element.value;
-        var modifiedValue = getModifiedValue(originalValue, insertText, cursorPosition, trigger);
-        element.value = modifiedValue;
+        var value = originalValue.slice(0, startPosition);
+        var currentValue = value.split(trigger || /\W/).pop();
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + insertText;
+        element.value = value + originalValue.slice(endPosition);
         element.focus();
 
-        var focusPostion = getFocusPosition(originalValue, modifiedValue, cursorPosition, suggestion.focus);
-        element.setSelectionRange(focusPostion[0], focusPostion[1]);
+        var cursorStartPosition = value.length;
+        element.setSelectionRange(cursorStartPosition + focus[0], cursorStartPosition + focus[1]);
     } else {
-        var _getContainerTextNode2 = getContainerTextNode(),
-            _cursorPosition2 = _getContainerTextNode2.cursorPosition,
-            containerTextNode = _getContainerTextNode2.containerTextNode;
+        var _getSelectedTextNodes2 = getSelectedTextNodes(),
+            startContainer = _getSelectedTextNodes2.startContainer,
+            startOffset = _getSelectedTextNodes2.startOffset,
+            endContainer = _getSelectedTextNodes2.endContainer,
+            endOffset = _getSelectedTextNodes2.endOffset;
 
-        if (!containerTextNode) return null;
+        var _value = startContainer.nodeValue.slice(0, startOffset);
+        var _currentValue = _value.split(trigger || /\W/).pop();
+        _value = _value.slice(0, 0 - _currentValue.length - (trigger || '').length) + insertText;
+        startContainer.nodeValue = _value + endContainer.nodeValue.slice(endOffset);
 
-        var _originalValue = containerTextNode.nodeValue;
-        var _modifiedValue = getModifiedValue(_originalValue, insertText, _cursorPosition2, trigger);
-        containerTextNode.nodeValue = _modifiedValue;
+        var node = startContainer;
+        if (node !== endContainer) {
+            node = getNextNode(startContainer);
+        }
+        while (node !== endContainer) {
+            node.parentNode.removeChild(node);
+            node = getNextNode(startContainer);
+        }
+        endContainer.parentNode.removeChild(endContainer);
 
-        var _focusPostion = getFocusPosition(_originalValue, _modifiedValue, _cursorPosition2, suggestion.focus);
+        var _cursorStartPosition = _value.length;
         var selection = window.getSelection().getRangeAt(0);
-        selection.setStart(containerTextNode, _focusPostion[0]);
-        selection.setEnd(containerTextNode, _focusPostion[1]);
+        selection.setStart(startContainer, _cursorStartPosition + focus[0]);
+        selection.setEnd(startContainer, _cursorStartPosition + focus[1]);
     }
 
     onChange(element, suggestion);
@@ -624,31 +705,37 @@ var AutoSuggest = function () {
             };
 
             var keyUpIndex = 0;
-            this.onKeyUpHandler = function (e) {
+            this.onKeyUpHandler = function () {
                 var _this = this;
 
                 if (handledInKeyDown) return;
 
                 var value = void 0;
                 if (data(this, 'isInput')) {
-                    var cursorPosition = getCursorPosition(this);
-                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(cursorPosition) || ' ')) {
+                    var _getCursorPosition5 = getCursorPosition(this),
+                        _getCursorPosition6 = slicedToArray(_getCursorPosition5, 2),
+                        startPosition = _getCursorPosition6[0],
+                        endPosition = _getCursorPosition6[1];
+
+                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(endPosition) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
 
-                    value = this.value.slice(0, cursorPosition);
+                    value = this.value.slice(0, startPosition);
                 } else {
-                    var _getContainerTextNode3 = getContainerTextNode(),
-                        _cursorPosition3 = _getContainerTextNode3.cursorPosition,
-                        containerTextNode = _getContainerTextNode3.containerTextNode;
+                    var _getSelectedTextNodes3 = getSelectedTextNodes(),
+                        startContainer = _getSelectedTextNodes3.startContainer,
+                        startOffset = _getSelectedTextNodes3.startOffset,
+                        endContainer = _getSelectedTextNodes3.endContainer,
+                        endOffset = _getSelectedTextNodes3.endOffset;
 
-                    if (!containerTextNode || /[a-zA-Z_0-9]/.test(containerTextNode.nodeValue.charAt(_cursorPosition3) || ' ')) {
+                    if (!startContainer || !endContainer || /[a-zA-Z_0-9]/.test(endContainer.nodeValue.charAt(endOffset) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
 
-                    value = containerTextNode.nodeValue.slice(0, _cursorPosition3);
+                    value = startContainer.nodeValue.slice(0, startOffset);
                 }
 
                 handleDropdown: {
@@ -772,6 +859,7 @@ var AutoSuggest = function () {
                 // init events
                 input.addEventListener('blur', _this2.onBlurHandler);
                 input.addEventListener('keyup', _this2.onKeyUpHandler);
+                input.addEventListener('click', _this2.onKeyUpHandler);
                 input.addEventListener('keydown', _this2.onKeyDownHandler, true);
 
                 data(input, 'index', _this2.inputs.push(input) - 1);
@@ -798,6 +886,7 @@ var AutoSuggest = function () {
                     // destroy events
                     input.removeEventListener('blur', _this3.onBlurHandler);
                     input.removeEventListener('keyup', _this3.onKeyUpHandler);
+                    input.removeEventListener('click', _this3.onKeyUpHandler);
                     input.removeEventListener('keydown', _this3.onKeyDownHandler, true);
                 }
             });
