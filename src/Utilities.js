@@ -84,15 +84,9 @@ export const makeAsyncQueueRunner = () => {
     let i = 0;
     let queue = [];
 
-    return {
-        resetQueue: () => {
-            i = 0;
-            queue = [];
-        },
-        executeQueue: (f, j) => {
-            queue[j - i] = f;
-            while (queue[0]) ++i, queue.shift()();
-        }
+    return (f, j) => {
+        queue[j - i] = f;
+        while (queue[0]) ++i, queue.shift()();
     };
 };
 

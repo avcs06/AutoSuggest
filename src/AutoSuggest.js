@@ -215,14 +215,13 @@ class AutoSuggest {
             };
 
             let keyUpIndex = 0;
-            const { resetQueue, executeQueue } = makeAsyncQueueRunner();
             this.onKeyUpHandler = function(e) {
                 if (handledInKeyDown) return;
 
                 let value;
                 if (data(this, 'isInput')) {
                     const cursorPosition = getCursorPosition(this);
-                    if ((this.value.charAt(cursorPosition) || '').trim()) {
+                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(cursorPosition) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
@@ -230,7 +229,10 @@ class AutoSuggest {
                     value = this.value.slice(0, cursorPosition);
                 } else {
                     const { cursorPosition, containerTextNode } = getContainerTextNode();
-                    if (!containerTextNode || (containerTextNode.nodeValue.charAt(cursorPosition) || '').trim()) {
+                    if (
+                        !containerTextNode ||
+                        /[a-zA-Z_0-9]/.test(containerTextNode.nodeValue.charAt(cursorPosition) || ' ')
+                    ) {
                         self.dropdown.hide();
                         return;
                     }
@@ -240,9 +242,9 @@ class AutoSuggest {
 
                 handleDropdown: {
                     keyUpIndex++;
-                    resetQueue();
                     self.dropdown.empty();
 
+                    const executeQueue = makeAsyncQueueRunner();
                     let i = 0, timer, triggerMatchFound = false;
                     for (let suggestionList of self.suggestionLists) {
                         if (suggestionList.regex.test(value)) {

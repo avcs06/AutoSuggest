@@ -112,7 +112,7 @@
 
                     var results = [];
                     var dataset = $('#input').val() + $('#textarea').val();
-                    dataset = dataset.toLowerCase().split(/\s+/);
+                    dataset = dataset.toLowerCase().split(/[^a-zA-Z0-9_]+/);
                     dataset.forEach(function(word) {
                         if (
                             word.length >= 4 &&

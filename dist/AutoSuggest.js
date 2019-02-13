@@ -133,16 +133,10 @@ var makeAsyncQueueRunner = function makeAsyncQueueRunner() {
     var i = 0;
     var queue = [];
 
-    return {
-        resetQueue: function resetQueue() {
-            i = 0;
-            queue = [];
-        },
-        executeQueue: function executeQueue(f, j) {
-            queue[j - i] = f;
-            while (queue[0]) {
-                ++i, queue.shift()();
-            }
+    return function (f, j) {
+        queue[j - i] = f;
+        while (queue[0]) {
+            ++i, queue.shift()();
         }
     };
 };
@@ -630,11 +624,6 @@ var AutoSuggest = function () {
             };
 
             var keyUpIndex = 0;
-
-            var _makeAsyncQueueRunner = makeAsyncQueueRunner(),
-                resetQueue = _makeAsyncQueueRunner.resetQueue,
-                executeQueue = _makeAsyncQueueRunner.executeQueue;
-
             this.onKeyUpHandler = function (e) {
                 var _this = this;
 
@@ -643,7 +632,7 @@ var AutoSuggest = function () {
                 var value = void 0;
                 if (data(this, 'isInput')) {
                     var cursorPosition = getCursorPosition(this);
-                    if ((this.value.charAt(cursorPosition) || '').trim()) {
+                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(cursorPosition) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
@@ -654,7 +643,7 @@ var AutoSuggest = function () {
                         _cursorPosition3 = _getContainerTextNode3.cursorPosition,
                         containerTextNode = _getContainerTextNode3.containerTextNode;
 
-                    if (!containerTextNode || (containerTextNode.nodeValue.charAt(_cursorPosition3) || '').trim()) {
+                    if (!containerTextNode || /[a-zA-Z_0-9]/.test(containerTextNode.nodeValue.charAt(_cursorPosition3) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
@@ -665,9 +654,9 @@ var AutoSuggest = function () {
                 handleDropdown: {
                     (function () {
                         keyUpIndex++;
-                        resetQueue();
                         self.dropdown.empty();
 
+                        var executeQueue = makeAsyncQueueRunner();
                         var i = 0,
                             timer = void 0,
                             triggerMatchFound = false;
