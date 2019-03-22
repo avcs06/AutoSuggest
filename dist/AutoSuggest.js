@@ -108,6 +108,28 @@ var slicedToArray = function () {
   };
 }();
 
+
+
+
+
+
+
+
+
+
+
+
+
+var toConsumableArray = function (arr) {
+  if (Array.isArray(arr)) {
+    for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i];
+
+    return arr2;
+  } else {
+    return Array.from(arr);
+  }
+};
+
 var ensure = function ensure(context, object, keys) {
     [].concat(keys).forEach(function (key) {
         if (typeof object[key] === 'undefined') {
@@ -469,6 +491,16 @@ function splitValue(originalValue, cursorPosition, trigger) {
     return { textAfterTrigger: textAfterTrigger, textUptoTrigger: textUptoTrigger };
 }
 
+function getCharHeight() {
+    for (var _len = arguments.length, elements = Array(_len), _key = 0; _key < _len; _key++) {
+        elements[_key] = arguments[_key];
+    }
+
+    return Math.max.apply(Math, toConsumableArray(elements.map(function (element) {
+        return parseFloat(getComputedStyle(element, 'line-height'));
+    })));
+}
+
 // Invisible character
 var POSITIONER_CHARACTER = '\uFEFF';
 function getCaretPosition(element, trigger) {
@@ -521,7 +553,7 @@ function getCaretPosition(element, trigger) {
         var caretPosition = getGlobalOffset(positioner);
         caretPosition.left -= clone.scrollLeft;
 
-        var charHeight = parseFloat(getComputedStyle(positioner, 'line-height'));
+        var charHeight = getCharHeight(clone, positioner);
         caretPosition.top += charHeight - clone.scrollTop;
 
         document.body.removeChild(clone);
@@ -555,7 +587,7 @@ function getCaretPosition(element, trigger) {
         }
 
         var _caretPosition = getGlobalOffset(_positioner);
-        var _charHeight = parseFloat(getComputedStyle(_positioner, 'line-height'));
+        var _charHeight = getCharHeight(_positioner);
         _caretPosition.top += _charHeight;
 
         // Reset DOM to the state before changes
@@ -826,8 +858,8 @@ var AutoSuggest = function () {
 
         // initialize events on inputs
 
-        for (var _len = arguments.length, inputs = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-            inputs[_key - 1] = arguments[_key];
+        for (var _len2 = arguments.length, inputs = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+            inputs[_key2 - 1] = arguments[_key2];
         }
 
         this.addInputs.apply(this, inputs);
@@ -838,8 +870,8 @@ var AutoSuggest = function () {
         value: function addInputs() {
             var _this2 = this;
 
-            for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-                args[_key2] = arguments[_key2];
+            for (var _len3 = arguments.length, args = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+                args[_key3] = arguments[_key3];
             }
 
             var inputs = Array.prototype.concat.apply([], args.map(function (d) {
@@ -870,8 +902,8 @@ var AutoSuggest = function () {
         value: function removeInputs() {
             var _this3 = this;
 
-            for (var _len3 = arguments.length, args = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
-                args[_key3] = arguments[_key3];
+            for (var _len4 = arguments.length, args = Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
+                args[_key4] = arguments[_key4];
             }
 
             var inputs = Array.prototype.concat.apply([], args.map(function (d) {

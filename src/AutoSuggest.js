@@ -19,6 +19,12 @@ function splitValue(originalValue, cursorPosition, trigger) {
     return { textAfterTrigger, textUptoTrigger };
 }
 
+function getCharHeight(...elements) {
+    return Math.max(...elements.map(element => (
+        parseFloat(getComputedStyle(element, 'line-height'))
+    )));
+}
+
 // Invisible character
 const POSITIONER_CHARACTER = "\ufeff";
 function getCaretPosition(element, trigger) {
@@ -64,7 +70,7 @@ function getCaretPosition(element, trigger) {
         const caretPosition = getGlobalOffset(positioner);
         caretPosition.left -= clone.scrollLeft;
 
-        const charHeight = parseFloat(getComputedStyle(positioner, 'line-height'));
+        const charHeight = getCharHeight(clone, positioner);
         caretPosition.top += charHeight - clone.scrollTop;
 
         document.body.removeChild(clone);
@@ -88,7 +94,7 @@ function getCaretPosition(element, trigger) {
         }
 
         const caretPosition = getGlobalOffset(positioner);
-        const charHeight = parseFloat(getComputedStyle(positioner, 'line-height'));
+        const charHeight = getCharHeight(positioner);
         caretPosition.top += charHeight;
 
         // Reset DOM to the state before changes

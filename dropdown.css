@@ -54,7 +54,7 @@
     outline: 0;
 }
 
-.open>.dropdown-menu {
+.dropdown.open>.dropdown-menu, .dropup.open>.dropdown-menu {
     display: block;
 }
 
@@ -75,6 +75,7 @@
 }
 
 /* Manually copy css after this comment if using bootstrap */
+
 .autosuggest-loader {
     color: #333;
     font-size: 6px;
