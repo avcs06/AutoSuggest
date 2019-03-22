@@ -535,6 +535,7 @@ function getCaretPosition(element, trigger) {
         document.body.appendChild(clone);
 
         // Extra styles for the clone depending on type of input
+        var charHeight = void 0;
         if (element.tagName === 'INPUT') {
             clone.style.overflowX = 'auto';
             clone.style.whiteSpace = 'nowrap';
@@ -543,17 +544,17 @@ function getCaretPosition(element, trigger) {
             } else {
                 clone.scrollLeft = Math.min(getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
             }
+            charHeight = clone.offsetHeight - parseFloat(getComputedStyle(clone, 'padding-top')) - parseFloat(getComputedStyle(clone, 'padding-bottom'));
         } else {
             clone.style.maxWidth = '100%';
             clone.style.whiteSpace = 'pre-wrap';
             clone.scrollTop = element.scrollTop;
             clone.scrollLeft = element.scrollLeft;
+            charHeight = getCharHeight(clone, positioner);
         }
 
         var caretPosition = getGlobalOffset(positioner);
         caretPosition.left -= clone.scrollLeft;
-
-        var charHeight = getCharHeight(clone, positioner);
         caretPosition.top += charHeight - clone.scrollTop;
 
         document.body.removeChild(clone);
