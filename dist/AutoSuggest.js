@@ -252,8 +252,8 @@ function validateSuggestions(suggestions) {
             suggestion = {
                 on: [suggestion],
                 show: suggestion,
-                use: suggestion,
-                focus: [0, 0]
+                insertText: suggestion,
+                focusText: [0, 0]
             };
         } else if (type === 'object') {
             try {
@@ -262,28 +262,38 @@ function validateSuggestions(suggestions) {
             } catch (e1) {
                 if (e1 instanceof TypeError) throw e1;
 
-                try {
-                    ensure('Suggestion', suggestion, ['on', 'show', 'use']);
-                } catch (e2) {
-                    if (suggestion.on || suggestion.show || suggestion.use) {
-                        throw e2;
-                    } else {
-                        throw e1;
+                if (!(suggestion.on && suggestion.show && (suggestion.insertText || suggestion.insertHtml))) {
+                    try {
+                        ensure('Suggestion', suggestion, ['on', 'show', 'insertText']);
+                    } catch (e2) {
+                        if (suggestion.on || suggestion.show || suggestion.insertText) {
+                            throw e2;
+                        } else {
+                            throw e1;
+                        }
                     }
                 }
 
                 ensureType('Suggestion', suggestion, 'on', 'string');
-                ensureType('Suggestion', suggestion, 'use', 'string');
                 ensureType('Suggestion', suggestion, 'show', 'string');
+                ensureType('Suggestion', suggestion, 'insertText', 'string');
+                ensureType('Suggestion', suggestion, 'insertHtml', 'string');
             }
 
             suggestion.show = suggestion.show || suggestion.value;
-            suggestion.use = suggestion.use || suggestion.value;
+            suggestion.insertText = suggestion.insertText || suggestion.value;
             suggestion.on = [suggestion.show].concat(suggestion.on || suggestion.value);
 
-            suggestion.focus = suggestion.focus || [0, 0];
-            if (suggestion.focus.constructor !== Array) {
-                suggestion.focus = [suggestion.focus, suggestion.focus];
+            suggestion.focusText = suggestion.focusText || [0, 0];
+            if (suggestion.focusText.constructor !== Array) {
+                suggestion.focusText = [suggestion.focusText, suggestion.focusText];
+            }
+
+            if (suggestion.insertHtml) {
+                suggestion.focusHtml = suggestion.focusHtml || [0, 0];
+                if (suggestion.focusHtml.constructor !== Array) {
+                    suggestion.focusHtml = [suggestion.focusHtml, suggestion.focusHtml];
+                }
             }
         }
 
@@ -613,14 +623,35 @@ var getNextNode = function getNextNode(node) {
     }return nextNode;
 };
 
+var removeNodesBetween = function removeNodesBetween(startContainer, endContainer) {
+    if (startContainer === endContainer) return;
+    var node = getNextNode(startContainer);
+    while (node !== endContainer) {
+        node.parentNode.removeChild(node);
+        node = getNextNode(startContainer);
+    }
+};
+
+var insertHtmlAfter = function insertHtmlAfter(node, html) {
+    var psuedoDom = document.createElement('div');
+    psuedoDom.innerHTML = html;
+
+    var referenceNode = node.nextSibling;
+    var appendedNodes = [];
+    while (psuedoDom.firstChild) {
+        appendedNodes.push(psuedoDom.firstChild);
+        node.parentNode.insertBefore(psuedoDom.firstChild, referenceNode);
+    }
+
+    return appendedNodes;
+};
+
 var setValue = function setValue(_ref) {
     var element = _ref.element,
         trigger = _ref.trigger,
         suggestion = _ref.suggestion,
         onChange = _ref.onChange;
 
-    var insertText = suggestion.use;
-    var focus = suggestion.focus;
 
     if (data(element, 'isInput')) {
         var _getCursorPosition3 = getCursorPosition(element),
@@ -629,12 +660,14 @@ var setValue = function setValue(_ref) {
             endPosition = _getCursorPosition4[1];
 
         var originalValue = element.value;
+
         var value = originalValue.slice(0, startPosition);
         var currentValue = value.split(trigger || /\W/).pop();
-        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + insertText;
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + (suggestion.insertText || suggestion.insertHtml);
         element.value = value + originalValue.slice(endPosition);
         element.focus();
 
+        var focus = suggestion.insertText ? suggestion.focusText : [0, 0];
         var cursorStartPosition = value.length;
         element.setSelectionRange(cursorStartPosition + focus[0], cursorStartPosition + focus[1]);
     } else {
@@ -644,25 +677,65 @@ var setValue = function setValue(_ref) {
             endContainer = _getSelectedTextNodes2.endContainer,
             endOffset = _getSelectedTextNodes2.endOffset;
 
-        var _value = startContainer.nodeValue.slice(0, startOffset);
-        var _currentValue = _value.split(trigger || /\W/).pop();
-        _value = _value.slice(0, 0 - _currentValue.length - (trigger || '').length) + insertText;
-        startContainer.nodeValue = _value + endContainer.nodeValue.slice(endOffset);
-
-        var node = startContainer;
-        if (node !== endContainer) {
-            node = getNextNode(startContainer);
-        }
-        while (node !== endContainer) {
-            node.parentNode.removeChild(node);
-            node = getNextNode(startContainer);
-        }
-        endContainer.parentNode.removeChild(endContainer);
-
-        var _cursorStartPosition = _value.length;
         var selection = window.getSelection().getRangeAt(0);
-        selection.setStart(startContainer, _cursorStartPosition + focus[0]);
-        selection.setEnd(startContainer, _cursorStartPosition + focus[1]);
+
+        var preValue = startContainer.nodeValue.slice(0, startOffset);
+        var replaceValue = preValue.split(trigger || /\W/).pop();
+        preValue = preValue.slice(0, 0 - replaceValue.length - (trigger || '').length);
+
+        if (startContainer !== endContainer) {
+            startContainer.nodeValue = preValue;
+            removeNodesBetween(startContainer, endContainer);
+            endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
+            endContainer.parentNode.normalize();
+        } else {
+            startContainer.splitText(endOffset);
+            startContainer.nodeValue = preValue;
+        }
+
+        if (suggestion.insertHtml) {
+            var setSelection = function setSelection(focus, nodes, method) {
+                var lastNode = void 0,
+                    lastFocus = focus;
+                if (lastFocus !== 0) {
+                    do {
+                        lastNode = nodes.pop();
+                        lastFocus += lastNode.textContent.length;
+                        console.log(lastNode, lastFocus);
+                    } while (nodes.length && lastFocus < 0);
+
+                    if (!lastNode) {
+                        throw new TypeError('AutoSuggest: Invalid value provided for Suggestion.focusHtml');
+                    }
+                }
+
+                if (lastFocus === 0) {
+                    selection[method + 'After'](nodes[nodes.length - 1] || startContainer);
+                } else {
+                    if (lastNode.nodeType === lastNode.TEXT_NODE) {
+                        selection[method](lastNode, lastFocus);
+                    } else {
+                        setSelection(lastFocus - lastNode.textContent.length, Array.from(lastNode.childNodes), method);
+                    }
+                }
+            };
+
+            var nodes = insertHtmlAfter(startContainer, suggestion.insertHtml);
+            var _focus = nodes.length ? suggestion.focusHtml : [0, 0];
+            
+
+            setSelection(_focus[1], [].concat(toConsumableArray(nodes)), 'setEnd');
+            setSelection(_focus[0], [].concat(toConsumableArray(nodes)), 'setStart');
+        } else {
+            startContainer.nodeValue += suggestion.insertText;
+
+            var _focus2 = suggestion.focusText;
+            var _cursorStartPosition = startContainer.nodeValue.length;
+            startContainer.parentNode.normalize();
+
+            selection.setStart(startContainer, _cursorStartPosition + _focus2[0]);
+            selection.setEnd(startContainer, _cursorStartPosition + _focus2[1]);
+        }
     }
 
     onChange(element, suggestion);

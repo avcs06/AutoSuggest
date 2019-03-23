@@ -7,8 +7,8 @@ function validateSuggestions (suggestions) {
             suggestion = {
                 on: [suggestion],
                 show: suggestion,
-                use: suggestion,
-                focus: [0, 0]
+                insertText: suggestion,
+                focusText: [0, 0]
             };
         } else if (type === 'object') {
             try {
@@ -17,28 +17,38 @@ function validateSuggestions (suggestions) {
             } catch (e1) {
                 if (e1 instanceof TypeError)  throw e1;
 
-                try {
-                    ensure('Suggestion', suggestion, ['on', 'show', 'use']);
-                } catch(e2) {
-                    if (suggestion.on || suggestion.show || suggestion.use) {
-                        throw e2;
-                    } else {
-                        throw e1;
+                if (!(suggestion.on && suggestion.show && (suggestion.insertText || suggestion.insertHtml))) {
+                    try {
+                        ensure('Suggestion', suggestion, ['on', 'show', 'insertText']);
+                    } catch (e2) {
+                        if (suggestion.on || suggestion.show || suggestion.insertText) {
+                            throw e2;
+                        } else {
+                            throw e1;
+                        }
                     }
                 }
 
                 ensureType('Suggestion', suggestion, 'on', 'string');
-                ensureType('Suggestion', suggestion, 'use', 'string');
                 ensureType('Suggestion', suggestion, 'show', 'string');
+                ensureType('Suggestion', suggestion, 'insertText', 'string');
+                ensureType('Suggestion', suggestion, 'insertHtml', 'string');
             }
 
             suggestion.show = suggestion.show || suggestion.value;
-            suggestion.use = suggestion.use || suggestion.value;
+            suggestion.insertText = suggestion.insertText || suggestion.value;
             suggestion.on = [suggestion.show].concat(suggestion.on || suggestion.value);
 
-            suggestion.focus = suggestion.focus || [0, 0];
-            if (suggestion.focus.constructor !== Array) {
-                suggestion.focus = [suggestion.focus, suggestion.focus];
+            suggestion.focusText = suggestion.focusText || [0, 0];
+            if (suggestion.focusText.constructor !== Array) {
+                suggestion.focusText = [suggestion.focusText, suggestion.focusText];
+            }
+
+            if (suggestion.insertHtml) {
+                suggestion.focusHtml = suggestion.focusHtml || [0, 0];
+                if (suggestion.focusHtml.constructor !== Array) {
+                    suggestion.focusHtml = [suggestion.focusHtml, suggestion.focusHtml];
+                }
             }
         }
 

@@ -80,13 +80,17 @@
                     values: [
                         {
                             value: 'script',
-                            use: '<script type="text/javascript" src="path/to/jsfile"><\/script>',
-                            focus: [-25, -11]
+                            insertText: '<script type="text/javascript" src="path/to/jsfile"><\/script>',
+                            focusText: [-25, -11],
+                            insertHtml: `&lt;<span style="color: red">script</span>&nbsp;<span style="color:green">type</span>=<span style="color:darksalmon">"text/javascript"</span>&nbsp;<span style="color:green">src</span>=<span style="color:darksalmon">"path/to/jsfile"</span>&gt;&lt;\/<span style="color: red">script</span>&gt;`,
+                            focusHtml: [-25, -11],
                         },
                         {
                             value: 'link',
-                            use: '<link href="path/to/cssfile" rel="stylesheet" \/>',
-                            focus: [-36, -21]
+                            insertText: '<link href="path/to/cssfile" rel="stylesheet" \/>',
+                            focusText: [-36, -21],
+                            insertHtml: `&lt;<span style="color:red">link</span> <span style="color:green">href</span>=<span style="color:darksalmon">"path/to/cssfile"</span> <span style="color:green">rel</span>=<span style="color:darksalmon">"stylesheet"</span> \/&gt;`,
+                            focusHtml: [-36, -21],
                         }
                     ]
                 }, {
@@ -95,12 +99,14 @@
                         {
                             on: ['avcs', 'cham', 'chandu'],
                             show: 'Chandrasekhar Ambula V',
-                            use: '@AmbulaV'
+                            insertText: '@AmbulaV',
+                            insertHtml: '<a href="/" target="_blank">@AmbulaV</a>'
                         },
                         {
                             on: ['pj'],
                             show: 'Peter John',
-                            use: '@John'
+                            insertText: '@John',
+                            insertHtml: '<a href="/" target="_blank">@John</a>'
                         }
                     ]
                 }, {

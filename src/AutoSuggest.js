@@ -119,42 +119,106 @@ const getNextNode = node => {
     return nextNode;
 };
 
+const removeNodesBetween = (startContainer, endContainer) => {
+    if (startContainer === endContainer) return;
+    let node = getNextNode(startContainer);
+    while (node !== endContainer) {
+        node.parentNode.removeChild(node);
+        node = getNextNode(startContainer);
+    }
+};
+
+const insertHtmlAfter = (node, html) => {
+    const psuedoDom = document.createElement('div');
+    psuedoDom.innerHTML = html;
+
+    const referenceNode = node.nextSibling;
+    const appendedNodes = [];
+    while (psuedoDom.firstChild) {
+        appendedNodes.push(psuedoDom.firstChild);
+        node.parentNode.insertBefore(psuedoDom.firstChild, referenceNode);
+    }
+
+    return appendedNodes;
+};
+
 const setValue = ({ element, trigger, suggestion, onChange }) => {
-    const insertText = suggestion.use;
-    const focus = suggestion.focus;
 
     if (data(element, 'isInput')) {
         const [startPosition, endPosition] = getCursorPosition(element);
         const originalValue = element.value;
+
         let value = originalValue.slice(0, startPosition);
         const currentValue = value.split(trigger || /\W/).pop();
-        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + insertText;
+        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + (suggestion.insertText || suggestion.insertHtml);
         element.value = value + originalValue.slice(endPosition);
         element.focus();
 
+        const focus = suggestion.insertText ? suggestion.focusText : [0, 0];
         const cursorStartPosition = value.length;
         element.setSelectionRange(cursorStartPosition + focus[0], cursorStartPosition + focus[1]);
     } else {
         const { startContainer, startOffset, endContainer, endOffset } = getSelectedTextNodes();
-        let value = startContainer.nodeValue.slice(0, startOffset);
-        const currentValue = value.split(trigger || /\W/).pop();
-        value = value.slice(0, 0 - currentValue.length - (trigger || '').length) + insertText;
-        startContainer.nodeValue = value + endContainer.nodeValue.slice(endOffset);
-
-        let node = startContainer;
-        if (node !== endContainer) {
-            node = getNextNode(startContainer);
-        }
-        while (node !== endContainer) {
-            node.parentNode.removeChild(node);
-            node = getNextNode(startContainer);
-        }
-        endContainer.parentNode.removeChild(endContainer);
-
-        const cursorStartPosition = value.length;
         const selection = window.getSelection().getRangeAt(0);
-        selection.setStart(startContainer, cursorStartPosition + focus[0]);
-        selection.setEnd(startContainer, cursorStartPosition + focus[1]);
+
+        let preValue = startContainer.nodeValue.slice(0, startOffset);
+        const replaceValue = preValue.split(trigger || /\W/).pop();
+        preValue = preValue.slice(0, 0 - replaceValue.length - (trigger || '').length);
+
+        if (startContainer !== endContainer) {
+            startContainer.nodeValue = preValue;
+            removeNodesBetween(startContainer, endContainer);
+            endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
+            endContainer.parentNode.normalize();
+        } else {
+            startContainer.splitText(endOffset);
+            startContainer.nodeValue = preValue;
+        }
+
+        if (suggestion.insertHtml) {
+            const nodes = insertHtmlAfter(startContainer, suggestion.insertHtml);
+            const focus = nodes.length ? suggestion.focusHtml : [0, 0];
+            function setSelection(focus, nodes, method) {
+                let lastNode, lastFocus = focus;
+                if (lastFocus !== 0) {
+                    do {
+                        lastNode = nodes.pop();
+                        lastFocus += lastNode.textContent.length;
+                        console.log(lastNode, lastFocus);
+                    } while(nodes.length && lastFocus < 0);
+
+                    if (!lastNode) {
+                        throw new TypeError(`AutoSuggest: Invalid value provided for Suggestion.focusHtml`);
+                    };
+                }
+
+                if (lastFocus === 0) {
+                    selection[method + 'After'](nodes[nodes.length - 1] || startContainer);
+                } else {
+                    if (lastNode.nodeType === lastNode.TEXT_NODE) {
+                        selection[method](lastNode, lastFocus);
+                    } else {
+                        setSelection(
+                            lastFocus - lastNode.textContent.length,
+                            Array.from(lastNode.childNodes),
+                            method
+                        );
+                    }
+                }
+            };
+
+            setSelection(focus[1], [...nodes], 'setEnd');
+            setSelection(focus[0], [...nodes], 'setStart');
+        } else {
+            startContainer.nodeValue += suggestion.insertText;
+
+            const focus = suggestion.focusText;
+            const cursorStartPosition = startContainer.nodeValue.length;
+            startContainer.parentNode.normalize();
+
+            selection.setStart(startContainer, cursorStartPosition + focus[0]);
+            selection.setEnd(startContainer, cursorStartPosition + focus[1]);
+        }
     }
 
     onChange(element, suggestion);

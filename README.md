@@ -72,16 +72,24 @@ This will overwrite the `caseSensitive` option from `AutoSuggest`
 These are the values used for matching, if the search value matches any of these values, this Suggestion will be shown in suggestions.
 
 **`show`**: `String`  
-This value will be shown in the dropdown.
+This value will be shown in the dropdown. (supports HTML)
 
-**`use`**: `String`  
-This value will be inserted into the place of trigger and keyword.
+**`insertText`**: `String`  
+This value will be inserted into the place of trigger and keyword as is.
+> If there is no `insertText`, `insertHtml` will be used as a string in case of input and textarea elements.
 
-**`focus`**: `[StartIndex, EndIndex]`  
-StartIndex and EndIndex of the content that should be in focus after inserting the content. As of now these indexes should be calculated as `(0 - numberOfCharactersFromEnd)`
+**`insertHtml`**: `String`  
+This value will be inserted into the place of trigger and keyword as Html Element.
+> If there is no `insertHtml`, `insertText` will be used in case of contenteditable.
+
+**`focusText`**: `[StartIndex, EndIndex]`  
+StartIndex and EndIndex of the content that should be in focus after inserting the text. As of now these indexes should be calculated as `(0 - numberOfCharactersFromEnd)`
+
+**`focusHtml`**: `[StartIndex, EndIndex]`  
+StartIndex and EndIndex of the content that should be in focus after inserting the HTML. As of now these indexes should be calculated as `(0 - numberOfCharactersFromEnd)`. This should not include the characters from HTML tags
 
 **`value`**: `string`  
-This will be used in the place of missing `on`, `show` and `use` values
+This will be used in the place of missing `on`, `show` and `insertText` values
 
 ***Suggestion as String***:  
 If Suggestion is passed as string it will be converted into following Suggestion object
@@ -89,6 +97,6 @@ If Suggestion is passed as string it will be converted into following Suggestion
 {
     on: [suggestion],
     show: suggestion,
-    use: suggestion
+    insertText: suggestion
 }
 ```
