@@ -184,7 +184,6 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
                     do {
                         lastNode = nodes.pop();
                         lastFocus += lastNode.textContent.length;
-                        console.log(lastNode, lastFocus);
                     } while(nodes.length && lastFocus < 0);
 
                     if (!lastNode) {

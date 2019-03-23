@@ -701,7 +701,6 @@ var setValue = function setValue(_ref) {
                     do {
                         lastNode = nodes.pop();
                         lastFocus += lastNode.textContent.length;
-                        console.log(lastNode, lastFocus);
                     } while (nodes.length && lastFocus < 0);
 
                     if (!lastNode) {
