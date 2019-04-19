@@ -75,8 +75,8 @@ function SuggestionList(options) {
     options.caseSensitive = Boolean(options.caseSensitive);
 
     if (typeof options.values === 'function') {
-        this.getSuggestions = (keyword, callback) => {
-            options.values(keyword, values => callback(validateSuggestions(values)));
+        this.getSuggestions = function (keyword, callback) {
+            options.values.call(this, keyword, values => callback(validateSuggestions(values)));
         };
     } else if (options.values.constructor === Array || typeof options.values === 'string') {
         options.values = validateSuggestions(options.values);

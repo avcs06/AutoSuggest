@@ -143,7 +143,6 @@ const insertHtmlAfter = (node, html) => {
 };
 
 const setValue = ({ element, trigger, suggestion, onChange }) => {
-
     if (data(element, 'isInput')) {
         const [startPosition, endPosition] = getCursorPosition(element);
         const originalValue = element.value;
@@ -220,7 +219,7 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
         }
     }
 
-    onChange(element, suggestion);
+    onChange(suggestion);
 };
 
 class AutoSuggest {
@@ -273,7 +272,7 @@ class AutoSuggest {
                             element: this,
                             trigger: activeSuggestionList.trigger,
                             suggestion: self.dropdown.getValue(),
-                            onChange: self.onChange
+                            onChange: self.onChange.bind(this)
                         });
                         self.dropdown.hide();
                         return preventDefaultAction();
@@ -337,7 +336,7 @@ class AutoSuggest {
                                     }, 0);
                                 }
 
-                                suggestionList.getSuggestions(match, results => {
+                                suggestionList.getSuggestions.call(this, match, results => {
                                     if (asyncReference !== keyUpIndex) return;
 
                                     executeQueue(() => {
@@ -352,7 +351,7 @@ class AutoSuggest {
                                                             element: this,
                                                             trigger: suggestionList.trigger,
                                                             suggestion: suggestion,
-                                                            onChange: self.onChange
+                                                            onChange: self.onChange.bind(this)
                                                         });
                                                     }
                                                 );

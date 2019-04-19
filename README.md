@@ -1,102 +1,34 @@
 # AutoSuggest
 A JavaScript plugin to implement IDE like autocompletion in input, textarea or contenteditable fields.
 
-# Installation
-*As npm module*
-```bash
-npm i @avcs/autosuggest --save
-```
+### [Demo](https://avcs.pro/autosuggest) | [Documentation](Documentation.md)
 
-*As bower component*
-```bash
-bower install avcs-autosuggest --save
-```
+# Features
+### General
+1. Supports input, textarea and contenteditable fields
+2. No external dependencies like jquery or bootstrap
+3. Can add and remove inputs dynamically.
 
-*As standalone JavaScript plugin*
-```html
-<script type="text/javascript" src="@avcs/autosuggest/dist/AutoSuggest.js"></script>
-```
+### Trigger
+1. Can use any character or any sequence of characters as a trigger.
+2. If no trigger is passed will use space as a trigger.
+3. Trigger character will also be removed when inserting a suggestion except for the above case.
 
-# Demo
-Please find an example using all possible configurations in all possible input fields [here](https://avcs.pro/autosuggest).
+### Suggestions
+1. Can supply an array of strings as [Suggestions](Documentation.md#suggestion-as-string).
+2. Can supply an array of objects as [Suggestions](Documentation.md#suggestion-as-object) to get fine control over the behavior of suggestions.
+3. Can pass HTML inside `Suggestion.show` if you want to design how the suggestion is shown in the dropdown.
+4. Can pass HTML in `Suggestion.insertText` if you want to show HTML as is in the contenteditable fields.
+5. Can pass HTML in `Suggestion.insertHTML` if you want to insert HTML as evaluated DOM elements in contenteditable fields.
+6. Can pass a `Function` in [SuggestionList.values](Documentation.md#suggestionlist) which will receive the keyword and generates [Suggestions](Documentation.md#suggestion) dynamically.
+    - Supports `Async` allowing you to fetch suggestions over API calls, shows a loader until the callback is executed.
+    - By default the plugin matches all suggestions that starts with keyword, if you want more control over matching, like fuzzy search, you can use `Function` to plug the behavior into the plugin.
 
-# AutoSuggest
-### Initialization
-```javascript
-// uncomment next line if using as npm module
-// import AutoSuggest from '@avcs/autosuggest';
-var instance = new AutoSuggest(options, ...inputFields);
-```
-
-### Options
-**`caseSensitive`**: `Boolean` *(default: `false`)*  
-Setting it to `true` will show suggestions only if the case of search value matches the case of suggestion.
-
-**`maxSuggestions`**: `Number` *(default: `10`)*  
-Maximum number of suggestions to be shown in the dropdown, suggestions will be taken from the top of SuggestionList.
-
-**`onChange`**: `Function<element, Suggestion>` *(optional)*
-
-**`suggestions`**: `Array<SuggestionList | Object<Options for SuggestionList>>` *(default: `[]`)*
-
-### Methods
-**`addInputs`**: `Function<...inputFields<DOMElement | Array<DOMELement> | Iterable<DOMElement>>`  
-Enable the autosuggest on new input fields after the instantiation.
-
-**`removeInputs`**: `Function<...inputFields<DOMElement | Array<DOMELement> | Iterable<DOMElement>>`  
-Disable the autosuggest on the input fields.
-
-**`destroy`**: `Function<>`  
-Disable autosuggest on all input fields.
-
-# SuggestionList
-### Initialization
-```javascript
-// uncomment next line if using as npm module
-// import SuggestionList from '@avcs/autosuggest/es/SuggestionList';
-var suggestionList = new SuggestionList(options);
-```
-
-### Options
-**`trigger`**: `String | undefined` *(default: `undefined`)*  
-This SuggestionList will be activated on typing the trigger, all the text typed after trigger is used as `keyword` for matching suggestions. If trigger is undefined, space is considered as trigger.
-
-**`caseSensitive`**: `Boolean` *(default: `false`)*  
-This will overwrite the `caseSensitive` option from `AutoSuggest`
-
-**`values`**: `Array<Suggestion> | Function<keyword: String, callback: Function<Array<Suggestion>>>` *required*
-
-# Suggestion `String | Object`
-***Suggestion as Object***:  
-**`on`**: `Array<String> | String`  
-These are the values used for matching, if the search value matches any of these values, this Suggestion will be shown in suggestions.
-
-**`show`**: `String`  
-This value will be shown in the dropdown. (supports HTML)
-
-**`insertText`**: `String`  
-This value will be inserted into the place of trigger and keyword as is.
-> If there is no `insertText`, `insertHtml` will be used as a string in case of input and textarea elements.
-
-**`insertHtml`**: `String`  
-This value will be inserted into the place of trigger and keyword as Html Element.
-> If there is no `insertHtml`, `insertText` will be used in case of contenteditable.
-
-**`focusText`**: `[StartIndex, EndIndex]`  
-StartIndex and EndIndex of the content that should be in focus after inserting the text. As of now these indexes should be calculated as `(0 - numberOfCharactersFromEnd)`
-
-**`focusHtml`**: `[StartIndex, EndIndex]`  
-StartIndex and EndIndex of the content that should be in focus after inserting the HTML. As of now these indexes should be calculated as `(0 - numberOfCharactersFromEnd)`. This should not include the characters from HTML tags
-
-**`value`**: `string`  
-This will be used in the place of missing `on`, `show` and `insertText` values
-
-***Suggestion as String***:  
-If Suggestion is passed as string it will be converted into following Suggestion object
-```javascript
-{
-    on: [suggestion],
-    show: suggestion,
-    insertText: suggestion
-}
-```
+### Dropdown
+1. Current scroll states are considered when calculating the position of dropdown.
+2. Considers `line-height` of the trigger character (height in case of input) to determine the position of dropdown.
+3. Can use `Up` and `Down` arrows to navigate between multiple suggestions when dropdown is active
+4. Can use `Enter` or `Tab` key to insert the current selected Suggestion in the dropdown
+5. Can use `Esc` key to close the dropdown.
+6. Dropdown will be shown on keydown or mousedown inside the input field, when the value before the current selection ends with "trigger + keyword" (without spaces) and the immediate character after the selection does not belong to `a-zA-Z0-9_` (Anything inside the selection will not be considered inside keyword)
+7. In case of contenteditable, if the selection spans over multiple nodes with different styles, the suggestion will be inserted into the first node, hence follows the style of the first node.

@@ -73,7 +73,9 @@
     <script src="./dist/AutoSuggest.js"></script>
     <script type="text/javascript">
         const instance = new AutoSuggest({
-            onChange: console.log,
+            onChange: function (suggestion) {
+                console.log(`"${suggestion.insertHtml || suggestion.insertText}" has been inserted into #${this.id}`);
+            },
             suggestions: [
                 {
                     trigger: '<',
@@ -117,7 +119,7 @@
                     keyword = keyword.toLowerCase();
 
                     var results = [];
-                    var dataset = $('#input').val() + $('#textarea').val();
+                    var dataset = this.value || this.textContent;
                     dataset = dataset.toLowerCase().split(/[^a-zA-Z0-9_]+/);
                     dataset.forEach(function(word) {
                         if (

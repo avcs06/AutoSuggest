@@ -321,7 +321,7 @@ function SuggestionList(options) {
 
     if (typeof options.values === 'function') {
         this.getSuggestions = function (keyword, callback) {
-            options.values(keyword, function (values) {
+            options.values.call(this, keyword, function (values) {
                 return callback(validateSuggestions(values));
             });
         };
@@ -652,7 +652,6 @@ var setValue = function setValue(_ref) {
         suggestion = _ref.suggestion,
         onChange = _ref.onChange;
 
-
     if (data(element, 'isInput')) {
         var _getCursorPosition3 = getCursorPosition(element),
             _getCursorPosition4 = slicedToArray(_getCursorPosition3, 2),
@@ -737,7 +736,7 @@ var setValue = function setValue(_ref) {
         }
     }
 
-    onChange(element, suggestion);
+    onChange(suggestion);
 };
 
 var AutoSuggest = function () {
@@ -792,7 +791,7 @@ var AutoSuggest = function () {
                             element: this,
                             trigger: activeSuggestionList.trigger,
                             suggestion: self.dropdown.getValue(),
-                            onChange: self.onChange
+                            onChange: self.onChange.bind(this)
                         });
                         self.dropdown.hide();
                         return preventDefaultAction();
@@ -868,7 +867,7 @@ var AutoSuggest = function () {
                                         }, 0);
                                     }
 
-                                    _suggestionList.getSuggestions(match, function (results) {
+                                    _suggestionList.getSuggestions.call(_this, match, function (results) {
                                         if (asyncReference !== keyUpIndex) return;
 
                                         executeQueue(function () {
@@ -881,7 +880,7 @@ var AutoSuggest = function () {
                                                             element: _this,
                                                             trigger: _suggestionList.trigger,
                                                             suggestion: suggestion,
-                                                            onChange: self.onChange
+                                                            onChange: self.onChange.bind(_this)
                                                         });
                                                     });
 
