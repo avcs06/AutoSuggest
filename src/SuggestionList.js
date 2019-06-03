@@ -56,6 +56,10 @@ function validateSuggestions (suggestions) {
     });
 }
 
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
 function SuggestionList(options) {
     // validate options
     if (options && !options.values) {
@@ -81,7 +85,7 @@ function SuggestionList(options) {
     } else if (options.values.constructor === Array || typeof options.values === 'string') {
         options.values = validateSuggestions(options.values);
         this.getSuggestions = (keyword, callback) => {
-            const matcher = new RegExp('^' + keyword, !options.caseSensitive ? 'i' : '');
+            const matcher = new RegExp('^' + escapeRegExp(keyword), !options.caseSensitive ? 'i' : '');
             callback (
                 options.values.filter(value => {
                     let matchFound = false;
@@ -99,7 +103,7 @@ function SuggestionList(options) {
 
     this.trigger = options.trigger;
     if (this.trigger) {
-        const escapedTrigger = `\\${this.trigger.split('').join('\\')}`;
+        const escapedTrigger = escapeRegExp(this.trigger)
         this.regex = new RegExp(`(?:^|[^${escapedTrigger}]+?)${escapedTrigger}(\\S*)$`);
     } else {
         this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
