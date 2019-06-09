@@ -78,7 +78,7 @@ function getCaretPosition(element, trigger) {
         return caretPosition;
     } else {
         const { startContainer, startOffset, endContainer, endOffset } = window.getSelection().getRangeAt(0);
-        const { startContainer: containerTextNode, startOffset: cursorPosition } = getSelectedTextNodes();
+        const { startContainer: containerTextNode, startOffset: cursorPosition, direction } = getSelectedTextNodes();
         const { textAfterTrigger, textUptoTrigger } = splitValue(containerTextNode.nodeValue, cursorPosition, trigger);
 
         const parentNode = containerTextNode.parentNode;
@@ -105,9 +105,12 @@ function getCaretPosition(element, trigger) {
             containerTextNode.nodeValue = textUptoTrigger + textAfterTrigger;
         }
 
-        const selection = window.getSelection().getRangeAt(0);
-        selection.setStart(startContainer, startOffset);
-        selection.setEnd(endContainer, endOffset);
+        const selection = window.getSelection();
+        if (direction) {
+            selection.setBaseAndExtent(startContainer, startOffset, endContainer, endOffset);
+        } else {
+            selection.setBaseAndExtent(endContainer, endOffset, startContainer, startOffset);
+        }
 
         return caretPosition;
     }

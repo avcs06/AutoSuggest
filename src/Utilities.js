@@ -53,9 +53,13 @@ export const getCursorPosition = input => {
 };
 
 export const getSelectedTextNodes = () => {
-    const range = window.getSelection().getRangeAt(0);
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0);
 
     let { startContainer, startOffset } = range;
+    const direction = selection.anchorNode === startContainer &&
+        selection.anchorOffset === startOffset;
+
     if (startContainer.nodeType !== startContainer.TEXT_NODE) {
         startContainer = startContainer.childNodes[startOffset];
         while (startContainer && startContainer.nodeType !== startContainer.TEXT_NODE) {
@@ -73,7 +77,7 @@ export const getSelectedTextNodes = () => {
         endOffset = endContainer ? endContainer.nodeValue.length : endContainer;
     }
 
-    return { startContainer, startOffset, endContainer, endOffset };
+    return { startContainer, startOffset, endContainer, endOffset, direction };
 };
 
 export const makeAsyncQueueRunner = () => {
