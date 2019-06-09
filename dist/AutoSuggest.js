@@ -301,12 +301,16 @@ function validateSuggestions(suggestions) {
     });
 }
 
+function escapeRegExp(string) {
+    return string.replace(/[.?+*^$[{()|\\]/g, '\\$&'); // $& means the whole matched string
+}
+
 function SuggestionList(options) {
+    var _this = this;
+
     // validate options
     if (options && !options.values) {
-        options = {
-            values: options
-        };
+        options = { values: options };
     }
 
     try {
@@ -328,26 +332,26 @@ function SuggestionList(options) {
     } else if (options.values.constructor === Array || typeof options.values === 'string') {
         options.values = validateSuggestions(options.values);
         this.getSuggestions = function (keyword, callback) {
-            var matcher = new RegExp('^' + keyword, !options.caseSensitive ? 'i' : '');
-            callback(options.values.filter(function (value) {
-                var matchFound = false;
-                for (var i = 0; i < value.on.length; i++) {
-                    if (value.on[i] !== keyword && (matchFound = matcher.test(value.on[i]))) {
-                        break;
-                    }
-                }
+            var flags = !options.caseSensitive ? 'i' : '';
+            var commonRegex = '(^|' + escapeRegExp(_this.trigger) + ')' + escapeRegExp(keyword);
 
-                return matchFound;
+            var matcher = new RegExp(commonRegex, flags);
+            var exactMatcher = new RegExp(commonRegex + '$', flags);
+
+            callback(options.values.filter(function (value) {
+                return value.on.some(function (entry) {
+                    return matcher.test(entry) && !exactMatcher.test(entry);
+                });
             }));
         };
     }
 
     this.trigger = options.trigger;
     if (this.trigger) {
-        var escapedTrigger = '\\' + this.trigger.split('').join('\\');
-        this.regex = new RegExp('(?:^|[^' + escapedTrigger + ']+?)' + escapedTrigger + '(\\S*)$');
+        var escapedTrigger = escapeRegExp(this.trigger);
+        this.regex = new RegExp('(?:^|\\W+?)' + escapedTrigger + '(\\S*)$');
     } else {
-        this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
+        this.regex = new RegExp('(?:^|\\s+)(\\S+)$');
     }
 }
 
@@ -821,7 +825,7 @@ var AutoSuggest = function () {
                         startPosition = _getCursorPosition6[0],
                         endPosition = _getCursorPosition6[1];
 
-                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(endPosition) || ' ')) {
+                    if (/\w/.test(this.value.charAt(endPosition) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
@@ -834,7 +838,7 @@ var AutoSuggest = function () {
                         endContainer = _getSelectedTextNodes3.endContainer,
                         endOffset = _getSelectedTextNodes3.endOffset;
 
-                    if (!startContainer || !endContainer || /[a-zA-Z_0-9]/.test(endContainer.nodeValue.charAt(endOffset) || ' ')) {
+                    if (!startContainer || !endContainer || /\w/.test(endContainer.nodeValue.charAt(endOffset) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }

@@ -112,9 +112,12 @@
                         }
                     ]
                 }, {
+                    trigger: 'w',
+                    values: ['word', 'world', 'with:^sp[e]c<i>(a)l ch{a}rs?$']
+                }, {
                     trigger: '//',
                     caseSensitive: true,
-                    values: ['hello', 'world', 'idiot', 'peter', 'pro', 'avcs']
+                    values: ['hello', 'world', 'simillar1', 'simillar12', 'with:^sp[e]c<i>(a)l ch{a}rs?$']
                 }, function(keyword, callback) {
                     keyword = keyword.toLowerCase();
 

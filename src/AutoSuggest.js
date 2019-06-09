@@ -296,7 +296,7 @@ class AutoSuggest {
                 let value;
                 if (data(this, 'isInput')) {
                     const [startPosition, endPosition] = getCursorPosition(this);
-                    if (/[a-zA-Z_0-9]/.test(this.value.charAt(endPosition) || ' ')) {
+                    if (/\w/.test(this.value.charAt(endPosition) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
@@ -304,10 +304,8 @@ class AutoSuggest {
                     value = this.value.slice(0, startPosition);
                 } else {
                     const { startContainer, startOffset, endContainer, endOffset } = getSelectedTextNodes();
-                    if (
-                        !startContainer || !endContainer ||
-                        /[a-zA-Z_0-9]/.test(endContainer.nodeValue.charAt(endOffset) || ' ')
-                    ) {
+                    if (!startContainer || !endContainer ||
+                        /\w/.test(endContainer.nodeValue.charAt(endOffset) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }

@@ -57,15 +57,13 @@ function validateSuggestions (suggestions) {
 }
 
 function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+    return string.replace(/[.?+*^$[{()|\\]/g, '\\$&'); // $& means the whole matched string
 }
 
 function SuggestionList(options) {
     // validate options
     if (options && !options.values) {
-        options = {
-            values: options
-        };
+        options = { values: options };
     }
 
     try {
@@ -85,18 +83,18 @@ function SuggestionList(options) {
     } else if (options.values.constructor === Array || typeof options.values === 'string') {
         options.values = validateSuggestions(options.values);
         this.getSuggestions = (keyword, callback) => {
-            const matcher = new RegExp('^' + escapeRegExp(keyword), !options.caseSensitive ? 'i' : '');
-            callback (
-                options.values.filter(value => {
-                    let matchFound = false;
-                    for (let i = 0; i < value.on.length; i++) {
-                        if (value.on[i] !== keyword && (matchFound = matcher.test(value.on[i]))) {
-                            break;
-                        }
-                    }
+            const flags = !options.caseSensitive ? 'i' : '';
+            const commonRegex = `(^|${escapeRegExp(this.trigger)})` + escapeRegExp(keyword);
 
-                    return matchFound;
-                })
+            const matcher = new RegExp(commonRegex, flags);
+            const exactMatcher = new RegExp(commonRegex + '$', flags);
+
+            callback (
+                options.values.filter(value => (
+                    value.on.some(entry => (
+                        matcher.test(entry) && !exactMatcher.test(entry)
+                    ))
+                ))
             );
         };
     }
@@ -104,9 +102,9 @@ function SuggestionList(options) {
     this.trigger = options.trigger;
     if (this.trigger) {
         const escapedTrigger = escapeRegExp(this.trigger)
-        this.regex = new RegExp(`(?:^|[^${escapedTrigger}]+?)${escapedTrigger}(\\S*)$`);
+        this.regex = new RegExp(`(?:^|\\W+?)${escapedTrigger}(\\S*)$`);
     } else {
-        this.regex = new RegExp('(?:^|\\W+)(\\w+)$');
+        this.regex = new RegExp('(?:^|\\s+)(\\S+)$');
     }
 }
 
