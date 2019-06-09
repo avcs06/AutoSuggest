@@ -1,5 +1,5 @@
 import {
-    data, cloneStyle,
+    data,
     getGlobalOffset,
     getCursorPosition,
     getScrollLeftForInput,
@@ -7,6 +7,10 @@ import {
     getSelectedTextNodes,
     getComputedStyle
 } from './Utilities';
+import {
+    IS_FIREFOX,
+    CLONE_PROPERTIES
+} from './Constants';
 
 import SuggestionList from './SuggestionList';
 import SuggestionDropdown from './SuggestionDropdown';
@@ -39,10 +43,10 @@ function getCaretPosition(element, trigger) {
         const positioner = document.createElement('span');
         positioner.appendChild(document.createTextNode(POSITIONER_CHARACTER));
 
-        clone.appendChild(document.createTextNode(textUptoTrigger.replace(/ /g, '\u00A0')));
-        clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(textAfterTrigger.replace(/ /g, '\u00A0')));
-        cloneStyle(element, clone);
+        const computed = window.getComputedStyle(element);
+        CLONE_PROPERTIES.forEach(prop => {
+            clone.style[prop] = computed[prop];
+        });
 
         const elementPosition = getGlobalOffset(element);
         clone.style.opacity = 0;
@@ -51,9 +55,20 @@ function getCaretPosition(element, trigger) {
         clone.style.left = `${elementPosition.left}px`;
         document.body.appendChild(clone);
 
+        if (IS_FIREFOX) {
+            if (element.scrollHeight > parseInt(computed.height))
+                clone.style.overflowY = 'scroll';
+        } else {
+            clone.style.overflow = 'hidden';
+        }
+
         // Extra styles for the clone depending on type of input
         let charHeight;
         if (element.tagName === 'INPUT') {
+            clone.appendChild(document.createTextNode(textUptoTrigger.replace(/ /g, '\u00A0')));
+            clone.appendChild(positioner);
+            clone.appendChild(document.createTextNode(textAfterTrigger.replace(/ /g, '\u00A0')));
+
             clone.style.overflowX = 'auto';
             clone.style.whiteSpace = 'nowrap';
             if (cursorPosition === element.value.length) {
@@ -61,10 +76,15 @@ function getCaretPosition(element, trigger) {
             } else {
                 clone.scrollLeft = Math.min(getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
             }
-            charHeight = clone.offsetHeight - parseFloat(getComputedStyle(clone, 'padding-top')) - parseFloat(getComputedStyle(clone, 'padding-bottom'));
+            charHeight = clone.offsetHeight - parseFloat(computed.paddingTop) - parseFloat(computed.paddingBottom);
         } else {
+            clone.appendChild(document.createTextNode(textUptoTrigger));
+            clone.appendChild(positioner);
+            clone.appendChild(document.createTextNode(textAfterTrigger));
+
             clone.style.maxWidth = '100%';
             clone.style.whiteSpace = 'pre-wrap';
+            clone.style.wordWrap = 'break-word';
             clone.scrollTop = element.scrollTop;
             clone.scrollLeft = element.scrollLeft;
             charHeight = getCharHeight(clone, positioner);

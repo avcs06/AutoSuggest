@@ -13,15 +13,6 @@ export const ensureType = (context, object, key, type) => {
     });
 };
 
-export const cloneStyle = (element1, element2) => {
-    const allStyles = window.getComputedStyle(element1);
-    for (let style in allStyles) {
-        if (allStyles.hasOwnProperty(style)) {
-            element2.style.setProperty(style, allStyles[style]);
-        }
-    }
-};
-
 export const getComputedStyle = (element, style) =>
     window.getComputedStyle(element).getPropertyValue(style);
 
