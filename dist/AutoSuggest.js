@@ -145,15 +145,6 @@ var ensureType = function ensureType(context, object, key, type) {
     });
 };
 
-var cloneStyle = function cloneStyle(element1, element2) {
-    var allStyles = window.getComputedStyle(element1);
-    for (var style in allStyles) {
-        if (allStyles.hasOwnProperty(style)) {
-            element2.style.setProperty(style, allStyles[style]);
-        }
-    }
-};
-
 var getComputedStyle = function getComputedStyle(element, style) {
     return window.getComputedStyle(element).getPropertyValue(style);
 };
@@ -190,10 +181,13 @@ var getCursorPosition = function getCursorPosition(input) {
 };
 
 var getSelectedTextNodes = function getSelectedTextNodes() {
-    var range = window.getSelection().getRangeAt(0);
+    var selection = window.getSelection();
+    var range = selection.getRangeAt(0);
 
     var startContainer = range.startContainer,
         startOffset = range.startOffset;
+
+    var direction = selection.anchorNode === startContainer && selection.anchorOffset === startOffset;
 
     if (startContainer.nodeType !== startContainer.TEXT_NODE) {
         startContainer = startContainer.childNodes[startOffset];
@@ -214,7 +208,7 @@ var getSelectedTextNodes = function getSelectedTextNodes() {
         endOffset = endContainer ? endContainer.nodeValue.length : endContainer;
     }
 
-    return { startContainer: startContainer, startOffset: startOffset, endContainer: endContainer, endOffset: endOffset };
+    return { startContainer: startContainer, startOffset: startOffset, endContainer: endContainer, endOffset: endOffset, direction: direction };
 };
 
 var makeAsyncQueueRunner = function makeAsyncQueueRunner() {
@@ -244,6 +238,19 @@ var createNode = function createNode(html) {
     div.innerHTML = html.trim();
     return div.firstChild;
 };
+
+var IS_FIREFOX = window.mozInnerScreenX != null;
+
+var CLONE_PROPERTIES = ['direction', // RTL support
+'boxSizing', 'width', // on Chrome and IE, exclude the scrollbar, so the mirror div wraps exactly as the textarea does
+'height', 'overflowX', 'overflowY', // copy the scrollbar for IE
+
+'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'borderStyle', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+
+// https://developer.mozilla.org/en-US/docs/Web/CSS/font
+'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize', 'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent', 'textDecoration', // might not make a difference, but better be safe
+
+'letterSpacing', 'wordSpacing', 'tabSize', 'MozTabSize'];
 
 function validateSuggestions(suggestions) {
     return [].concat(suggestions).map(function (suggestion) {
@@ -536,10 +543,10 @@ function getCaretPosition(element, trigger) {
         var positioner = document.createElement('span');
         positioner.appendChild(document.createTextNode(POSITIONER_CHARACTER));
 
-        clone.appendChild(document.createTextNode(textUptoTrigger.replace(/ /g, '\xA0')));
-        clone.appendChild(positioner);
-        clone.appendChild(document.createTextNode(textAfterTrigger.replace(/ /g, '\xA0')));
-        cloneStyle(element, clone);
+        var computed = window.getComputedStyle(element);
+        CLONE_PROPERTIES.forEach(function (prop) {
+            clone.style[prop] = computed[prop];
+        });
 
         var elementPosition = getGlobalOffset(element);
         clone.style.opacity = 0;
@@ -548,9 +555,19 @@ function getCaretPosition(element, trigger) {
         clone.style.left = elementPosition.left + 'px';
         document.body.appendChild(clone);
 
+        if (IS_FIREFOX) {
+            if (element.scrollHeight > parseInt(computed.height)) clone.style.overflowY = 'scroll';
+        } else {
+            clone.style.overflow = 'hidden';
+        }
+
         // Extra styles for the clone depending on type of input
         var charHeight = void 0;
         if (element.tagName === 'INPUT') {
+            clone.appendChild(document.createTextNode(textUptoTrigger.replace(/ /g, '\xA0')));
+            clone.appendChild(positioner);
+            clone.appendChild(document.createTextNode(textAfterTrigger.replace(/ /g, '\xA0')));
+
             clone.style.overflowX = 'auto';
             clone.style.whiteSpace = 'nowrap';
             if (cursorPosition === element.value.length) {
@@ -558,10 +575,15 @@ function getCaretPosition(element, trigger) {
             } else {
                 clone.scrollLeft = Math.min(getScrollLeftForInput(element), clone.scrollWidth - clone.clientWidth);
             }
-            charHeight = clone.offsetHeight - parseFloat(getComputedStyle(clone, 'padding-top')) - parseFloat(getComputedStyle(clone, 'padding-bottom'));
+            charHeight = clone.offsetHeight - parseFloat(computed.paddingTop) - parseFloat(computed.paddingBottom);
         } else {
+            clone.appendChild(document.createTextNode(textUptoTrigger));
+            clone.appendChild(positioner);
+            clone.appendChild(document.createTextNode(textAfterTrigger));
+
             clone.style.maxWidth = '100%';
             clone.style.whiteSpace = 'pre-wrap';
+            clone.style.wordWrap = 'break-word';
             clone.scrollTop = element.scrollTop;
             clone.scrollLeft = element.scrollLeft;
             charHeight = getCharHeight(clone, positioner);
@@ -582,7 +604,8 @@ function getCaretPosition(element, trigger) {
 
         var _getSelectedTextNodes = getSelectedTextNodes(),
             containerTextNode = _getSelectedTextNodes.startContainer,
-            _cursorPosition = _getSelectedTextNodes.startOffset;
+            _cursorPosition = _getSelectedTextNodes.startOffset,
+            direction = _getSelectedTextNodes.direction;
 
         var _splitValue2 = splitValue(containerTextNode.nodeValue, _cursorPosition, trigger),
             _textAfterTrigger = _splitValue2.textAfterTrigger,
@@ -612,9 +635,12 @@ function getCaretPosition(element, trigger) {
             containerTextNode.nodeValue = _textUptoTrigger + _textAfterTrigger;
         }
 
-        var selection = window.getSelection().getRangeAt(0);
-        selection.setStart(startContainer, startOffset);
-        selection.setEnd(endContainer, endOffset);
+        var selection = window.getSelection();
+        if (direction) {
+            selection.setBaseAndExtent(startContainer, startOffset, endContainer, endOffset);
+        } else {
+            selection.setBaseAndExtent(endContainer, endOffset, startContainer, startOffset);
+        }
 
         return _caretPosition;
     }
