@@ -425,7 +425,7 @@ var SuggestionDropdown = function () {
             this.empty();
             suggestions.forEach(function (suggestion) {
                 var dropdownLink = createNode('<li><a>' + suggestion.show + '</a></li>');
-                _this.dropdownContent.append(dropdownLink);
+                _this.dropdownContent.appendChild(dropdownLink);
                 data(dropdownLink, 'suggestion', suggestion);
 
                 dropdownLink.addEventListener('mouseenter', function () {
@@ -590,8 +590,13 @@ function getCaretPosition(element, trigger) {
         }
 
         var caretPosition = getGlobalOffset(positioner);
-        caretPosition.left -= clone.scrollLeft;
+        var inputPosition = getGlobalOffset(element);
+
         caretPosition.top += charHeight - clone.scrollTop;
+        caretPosition.left -= clone.scrollLeft;
+
+        var diff = caretPosition.left - inputPosition.left;
+        if (diff < 0 || diff > element.clientWidth) caretPosition.left = inputPosition.left;
 
         document.body.removeChild(clone);
         return caretPosition;
@@ -636,10 +641,18 @@ function getCaretPosition(element, trigger) {
         }
 
         var selection = window.getSelection();
-        if (direction) {
-            selection.setBaseAndExtent(startContainer, startOffset, endContainer, endOffset);
+        if (selection.setBaseAndExtent) {
+            if (direction) {
+                selection.setBaseAndExtent(startContainer, startOffset, endContainer, endOffset);
+            } else {
+                selection.setBaseAndExtent(endContainer, endOffset, startContainer, startOffset);
+            }
         } else {
-            selection.setBaseAndExtent(endContainer, endOffset, startContainer, startOffset);
+            var range = document.createRange();
+            range.setStart(startContainer, startOffset);
+            range.setEnd(endContainer, endOffset);
+            selection.removeAllRanges();
+            selection.addRange(range);
         }
 
         return _caretPosition;
@@ -706,7 +719,8 @@ var setValue = function setValue(_ref) {
             endContainer = _getSelectedTextNodes2.endContainer,
             endOffset = _getSelectedTextNodes2.endOffset;
 
-        var selection = window.getSelection().getRangeAt(0);
+        var selection = window.getSelection();
+        var range = document.createRange();
 
         var preValue = startContainer.nodeValue.slice(0, startOffset);
         var replaceValue = preValue.split(trigger || /\W/).pop();
@@ -718,7 +732,11 @@ var setValue = function setValue(_ref) {
             endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
             endContainer.parentNode.normalize();
         } else {
-            startContainer.splitText(endOffset);
+            var remainingText = startContainer.nodeValue.slice(endOffset);
+            if (remainingText) {
+                var remainingTextNode = document.createTextNode(remainingText);
+                startContainer.parentNode.insertBefore(remainingTextNode, startContainer.nextSibling);
+            }
             startContainer.nodeValue = preValue;
         }
 
@@ -738,32 +756,34 @@ var setValue = function setValue(_ref) {
                 }
 
                 if (lastFocus === 0) {
-                    selection[method + 'After'](nodes[nodes.length - 1] || startContainer);
+                    range[method + 'After'](nodes[nodes.length - 1] || startContainer);
                 } else {
                     if (lastNode.nodeType === lastNode.TEXT_NODE) {
-                        selection[method](lastNode, lastFocus);
+                        range[method](lastNode, lastFocus);
                     } else {
-                        setSelection(lastFocus - lastNode.textContent.length, Array.from(lastNode.childNodes), method);
+                        setSelection(lastFocus - lastNode.textContent.length, Array.prototype.slice.call(lastNode.childNodes, 0), method);
                     }
                 }
             };
 
             var nodes = insertHtmlAfter(startContainer, suggestion.insertHtml);
             var _focus = nodes.length ? suggestion.focusHtml : [0, 0];
+
             
 
             setSelection(_focus[1], [].concat(toConsumableArray(nodes)), 'setEnd');
             setSelection(_focus[0], [].concat(toConsumableArray(nodes)), 'setStart');
         } else {
             startContainer.nodeValue += suggestion.insertText;
-
             var _focus2 = suggestion.focusText;
             var _cursorStartPosition = startContainer.nodeValue.length;
-            startContainer.parentNode.normalize();
 
-            selection.setStart(startContainer, _cursorStartPosition + _focus2[0]);
-            selection.setEnd(startContainer, _cursorStartPosition + _focus2[1]);
+            range.setStart(startContainer, _cursorStartPosition + _focus2[0]);
+            range.setEnd(startContainer, _cursorStartPosition + _focus2[1]);
         }
+
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     onChange(suggestion);
@@ -809,7 +829,6 @@ var AutoSuggest = function () {
             };
 
             this.onKeyDownHandler = function (e) {
-                handledInKeyDown = false;
                 if (self.dropdown.isActive) {
                     var preventDefaultAction = function preventDefaultAction() {
                         e.preventDefault();
@@ -839,10 +858,13 @@ var AutoSuggest = function () {
             };
 
             var keyUpIndex = 0;
-            this.onKeyUpHandler = function () {
+            this.onKeyUpHandler = function (e) {
                 var _this = this;
 
-                if (handledInKeyDown) return;
+                if (handledInKeyDown) {
+                    handledInKeyDown = false;
+                    return;
+                }
 
                 var value = void 0;
                 if (data(this, 'isInput')) {
@@ -873,87 +895,59 @@ var AutoSuggest = function () {
                 }
 
                 handleDropdown: {
-                    (function () {
-                        keyUpIndex++;
-                        self.dropdown.empty();
+                    keyUpIndex++;
+                    self.dropdown.empty();
 
-                        var executeQueue = makeAsyncQueueRunner();
-                        var i = 0,
-                            timer = void 0,
-                            triggerMatchFound = false;
+                    var executeQueue = makeAsyncQueueRunner();
+                    var _i = 0,
+                        timer = void 0,
+                        triggerMatchFound = false;
+                    self.suggestionLists.forEach(function (suggestionList) {
+                        if (suggestionList.regex.test(value)) {
+                            triggerMatchFound = true;
 
-                        var _loop = function _loop(_suggestionList) {
-                            if (_suggestionList.regex.test(value)) {
-                                triggerMatchFound = true;
+                            (function (i, asyncReference) {
+                                var match = suggestionList.getMatch(value);
+                                var caretPosition = getCaretPosition(_this, suggestionList.trigger);
 
-                                (function (i, asyncReference) {
-                                    var match = _suggestionList.getMatch(value);
-                                    var caretPosition = getCaretPosition(_this, _suggestionList.trigger);
+                                if (self.dropdown.isEmpty) {
+                                    timer && clearTimeout(timer);
+                                    timer = setTimeout(function () {
+                                        self.dropdown.showLoader(caretPosition);
+                                    }, 0);
+                                }
 
-                                    if (self.dropdown.isEmpty) {
+                                suggestionList.getSuggestions.call(_this, match, function (results) {
+                                    if (asyncReference !== keyUpIndex) return;
+
+                                    executeQueue(function () {
                                         timer && clearTimeout(timer);
-                                        timer = setTimeout(function () {
-                                            self.dropdown.showLoader(caretPosition);
-                                        }, 0);
-                                    }
-
-                                    _suggestionList.getSuggestions.call(_this, match, function (results) {
-                                        if (asyncReference !== keyUpIndex) return;
-
-                                        executeQueue(function () {
-                                            timer && clearTimeout(timer);
-                                            if (self.dropdown.isEmpty) {
-                                                if (results.length) {
-                                                    activeSuggestionList = _suggestionList;
-                                                    self.dropdown.fill(results.slice(0, self.maxSuggestions), function (suggestion) {
-                                                        setValue({
-                                                            element: _this,
-                                                            trigger: _suggestionList.trigger,
-                                                            suggestion: suggestion,
-                                                            onChange: self.onChange.bind(_this)
-                                                        });
+                                        if (self.dropdown.isEmpty) {
+                                            if (results.length) {
+                                                activeSuggestionList = suggestionList;
+                                                self.dropdown.fill(results.slice(0, self.maxSuggestions), function (suggestion) {
+                                                    setValue({
+                                                        element: _this,
+                                                        trigger: suggestionList.trigger,
+                                                        suggestion: suggestion,
+                                                        onChange: self.onChange.bind(_this)
                                                     });
+                                                });
 
-                                                    self.dropdown.show(caretPosition);
-                                                } else {
-                                                    self.dropdown.hide();
-                                                }
+                                                self.dropdown.show(caretPosition);
+                                            } else {
+                                                self.dropdown.hide();
                                             }
-                                        }, i);
-                                    });
-                                })(i++, keyUpIndex);
-                            }
-                        };
-
-                        var _iteratorNormalCompletion = true;
-                        var _didIteratorError = false;
-                        var _iteratorError = undefined;
-
-                        try {
-                            for (var _iterator = self.suggestionLists[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-                                var _suggestionList = _step.value;
-
-                                _loop(_suggestionList);
-                            }
-                        } catch (err) {
-                            _didIteratorError = true;
-                            _iteratorError = err;
-                        } finally {
-                            try {
-                                if (!_iteratorNormalCompletion && _iterator.return) {
-                                    _iterator.return();
-                                }
-                            } finally {
-                                if (_didIteratorError) {
-                                    throw _iteratorError;
-                                }
-                            }
+                                        }
+                                    }, i);
+                                });
+                            })(_i++, keyUpIndex);
                         }
+                    });
 
-                        if (!triggerMatchFound) {
-                            self.dropdown.hide();
-                        }
-                    })();
+                    if (!triggerMatchFound) {
+                        self.dropdown.hide();
+                    }
                 }
             };
         }
@@ -982,10 +976,10 @@ var AutoSuggest = function () {
 
             inputs.forEach(function (input) {
                 // validate element
-                if (input.isContentEditable) {
-                    data(input, 'isInput', false);
-                } else if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT' && input.type === 'text') {
+                if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT' && input.type === 'text') {
                     data(input, 'isInput', true);
+                } else if (input.isContentEditable) {
+                    data(input, 'isInput', false);
                 } else {
                     throw new Error('AutoSuggest: Invalid input: only input[type = text], textarea and contenteditable elements are supported');
                 }
@@ -993,7 +987,7 @@ var AutoSuggest = function () {
                 // init events
                 input.addEventListener('blur', _this2.onBlurHandler);
                 input.addEventListener('keyup', _this2.onKeyUpHandler);
-                input.addEventListener('click', _this2.onKeyUpHandler);
+                input.addEventListener('mouseup', _this2.onKeyUpHandler);
                 input.addEventListener('keydown', _this2.onKeyDownHandler, true);
 
                 data(input, 'index', _this2.inputs.push(input) - 1);
@@ -1020,7 +1014,7 @@ var AutoSuggest = function () {
                     // destroy events
                     input.removeEventListener('blur', _this3.onBlurHandler);
                     input.removeEventListener('keyup', _this3.onKeyUpHandler);
-                    input.removeEventListener('click', _this3.onKeyUpHandler);
+                    input.removeEventListener('mouseup', _this3.onKeyUpHandler);
                     input.removeEventListener('keydown', _this3.onKeyDownHandler, true);
                 }
             });
