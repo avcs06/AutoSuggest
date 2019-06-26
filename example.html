@@ -74,7 +74,8 @@
     <script type="text/javascript">
         const instance = new AutoSuggest({
             onChange: function (suggestion) {
-                console.log(`"${suggestion.insertHtml || suggestion.insertText}" has been inserted into #${this.id}`);
+                const change = suggestion.insertHtml || suggestion.insertText;
+                console.log('"' + change + '" has been inserted into #' + this.id);
             },
             suggestions: [
                 {
@@ -84,14 +85,14 @@
                             value: 'script',
                             insertText: '<script type="text/javascript" src="path/to/jsfile"><\/script>',
                             focusText: [-25, -11],
-                            insertHtml: `&lt;<span style="color: red">script</span>&nbsp;<span style="color:green">type</span>=<span style="color:darksalmon">"text/javascript"</span>&nbsp;<span style="color:green">src</span>=<span style="color:darksalmon">"path/to/jsfile"</span>&gt;&lt;\/<span style="color: red">script</span>&gt;`,
+                            insertHtml: '&lt;<span style="color: red">script</span>&nbsp;<span style="color:green">type</span>=<span style="color:darksalmon">"text/javascript"</span>&nbsp;<span style="color:green">src</span>=<span style="color:darksalmon">"path/to/jsfile"</span>&gt;&lt;\/<span style="color: red">script</span>&gt;',
                             focusHtml: [-25, -11],
                         },
                         {
                             value: 'link',
                             insertText: '<link href="path/to/cssfile" rel="stylesheet" \/>',
                             focusText: [-36, -21],
-                            insertHtml: `&lt;<span style="color:red">link</span> <span style="color:green">href</span>=<span style="color:darksalmon">"path/to/cssfile"</span> <span style="color:green">rel</span>=<span style="color:darksalmon">"stylesheet"</span> \/&gt;`,
+                            insertHtml: '&lt;<span style="color:red">link</span> <span style="color:green">href</span>=<span style="color:darksalmon">"path/to/cssfile"</span> <span style="color:green">rel</span>=<span style="color:darksalmon">"stylesheet"</span> \/&gt;',
                             focusHtml: [-36, -21],
                         }
                     ]
@@ -135,7 +136,7 @@
                         }
                     });
 
-                    setTimeout(() => {
+                    setTimeout(function () {
                         callback(results);
                     }, 1000);
                 }

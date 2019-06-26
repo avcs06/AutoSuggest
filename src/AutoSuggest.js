@@ -91,8 +91,14 @@ function getCaretPosition(element, trigger) {
         }
 
         const caretPosition = getGlobalOffset(positioner);
-        caretPosition.left -= clone.scrollLeft;
+        const inputPosition = getGlobalOffset(element);
+
         caretPosition.top += charHeight - clone.scrollTop;
+        caretPosition.left -= clone.scrollLeft;
+
+        const diff = caretPosition.left - inputPosition.left;
+        if (diff < 0 || diff > element.clientWidth)
+            caretPosition.left = inputPosition.left;
 
         document.body.removeChild(clone);
         return caretPosition;
@@ -126,10 +132,18 @@ function getCaretPosition(element, trigger) {
         }
 
         const selection = window.getSelection();
-        if (direction) {
-            selection.setBaseAndExtent(startContainer, startOffset, endContainer, endOffset);
+        if (selection.setBaseAndExtent) {
+            if (direction) {
+                selection.setBaseAndExtent(startContainer, startOffset, endContainer, endOffset);
+            } else {
+                selection.setBaseAndExtent(endContainer, endOffset, startContainer, startOffset);
+            }
         } else {
-            selection.setBaseAndExtent(endContainer, endOffset, startContainer, startOffset);
+            const range = document.createRange();
+            range.setStart(startContainer, startOffset);
+            range.setEnd(endContainer, endOffset);
+            selection.removeAllRanges();
+            selection.addRange(range)
         }
 
         return caretPosition;
@@ -181,7 +195,8 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
         element.setSelectionRange(cursorStartPosition + focus[0], cursorStartPosition + focus[1]);
     } else {
         const { startContainer, startOffset, endContainer, endOffset } = getSelectedTextNodes();
-        const selection = window.getSelection().getRangeAt(0);
+        const selection = window.getSelection();
+        const range = document.createRange();
 
         let preValue = startContainer.nodeValue.slice(0, startOffset);
         const replaceValue = preValue.split(trigger || /\W/).pop();
@@ -193,13 +208,18 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
             endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
             endContainer.parentNode.normalize();
         } else {
-            startContainer.splitText(endOffset);
+            const remainingText = startContainer.nodeValue.slice(endOffset);
+            if (remainingText) {
+                const remainingTextNode = document.createTextNode(remainingText);
+                startContainer.parentNode.insertBefore(remainingTextNode, startContainer.nextSibling);
+            }
             startContainer.nodeValue = preValue;
         }
 
         if (suggestion.insertHtml) {
             const nodes = insertHtmlAfter(startContainer, suggestion.insertHtml);
             const focus = nodes.length ? suggestion.focusHtml : [0, 0];
+
             function setSelection(focus, nodes, method) {
                 let lastNode, lastFocus = focus;
                 if (lastFocus !== 0) {
@@ -214,14 +234,14 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
                 }
 
                 if (lastFocus === 0) {
-                    selection[method + 'After'](nodes[nodes.length - 1] || startContainer);
+                    range[method + 'After'](nodes[nodes.length - 1] || startContainer);
                 } else {
                     if (lastNode.nodeType === lastNode.TEXT_NODE) {
-                        selection[method](lastNode, lastFocus);
+                        range[method](lastNode, lastFocus);
                     } else {
                         setSelection(
                             lastFocus - lastNode.textContent.length,
-                            Array.from(lastNode.childNodes),
+                            Array.prototype.slice.call(lastNode.childNodes, 0),
                             method
                         );
                     }
@@ -232,14 +252,15 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
             setSelection(focus[0], [...nodes], 'setStart');
         } else {
             startContainer.nodeValue += suggestion.insertText;
-
             const focus = suggestion.focusText;
             const cursorStartPosition = startContainer.nodeValue.length;
-            startContainer.parentNode.normalize();
 
-            selection.setStart(startContainer, cursorStartPosition + focus[0]);
-            selection.setEnd(startContainer, cursorStartPosition + focus[1]);
+            range.setStart(startContainer, cursorStartPosition + focus[0]);
+            range.setEnd(startContainer, cursorStartPosition + focus[1]);
         }
+
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     onChange(suggestion);
@@ -283,7 +304,6 @@ class AutoSuggest {
             };
 
             this.onKeyDownHandler = function(e) {
-                handledInKeyDown = false;
                 if (self.dropdown.isActive) {
                     const preventDefaultAction = () => {
                         e.preventDefault();
@@ -313,8 +333,11 @@ class AutoSuggest {
             };
 
             let keyUpIndex = 0;
-            this.onKeyUpHandler = function() {
-                if (handledInKeyDown) return;
+            this.onKeyUpHandler = function(e) {
+                if (handledInKeyDown) {
+                    handledInKeyDown = false;
+                    return;
+                }
 
                 let value;
                 if (data(this, 'isInput')) {
@@ -342,7 +365,7 @@ class AutoSuggest {
 
                     const executeQueue = makeAsyncQueueRunner();
                     let i = 0, timer, triggerMatchFound = false;
-                    for (let suggestionList of self.suggestionLists) {
+                    self.suggestionLists.forEach(suggestionList => {
                         if (suggestionList.regex.test(value)) {
                             triggerMatchFound = true;
 
@@ -386,7 +409,7 @@ class AutoSuggest {
                                 });
                             })(i++, keyUpIndex);
                         }
-                    }
+                    });
 
                     if (!triggerMatchFound) {
                         self.dropdown.hide();
@@ -404,10 +427,10 @@ class AutoSuggest {
 
         inputs.forEach(input => {
             // validate element
-            if (input.isContentEditable) {
-                data(input, 'isInput', false)
-            } else if (input.tagName === 'TEXTAREA' || (input.tagName === 'INPUT' && input.type === 'text')) {
+            if (input.tagName === 'TEXTAREA' || (input.tagName === 'INPUT' && input.type === 'text')) {
                 data(input, 'isInput', true)
+            } else if (input.isContentEditable) {
+                data(input, 'isInput', false)
             } else {
                 throw new Error('AutoSuggest: Invalid input: only input[type = text], textarea and contenteditable elements are supported');
             }
@@ -415,7 +438,7 @@ class AutoSuggest {
             // init events
             input.addEventListener('blur', this.onBlurHandler);
             input.addEventListener('keyup', this.onKeyUpHandler);
-            input.addEventListener('click', this.onKeyUpHandler);
+            input.addEventListener('mouseup', this.onKeyUpHandler);
             input.addEventListener('keydown', this.onKeyDownHandler, true);
 
             data(input, 'index', this.inputs.push(input) - 1);
@@ -433,7 +456,7 @@ class AutoSuggest {
                 // destroy events
                 input.removeEventListener('blur', this.onBlurHandler);
                 input.removeEventListener('keyup', this.onKeyUpHandler);
-                input.removeEventListener('click', this.onKeyUpHandler);
+                input.removeEventListener('mouseup', this.onKeyUpHandler);
                 input.removeEventListener('keydown', this.onKeyDownHandler, true);
             }
         });

@@ -50,7 +50,7 @@ class SuggestionDropdown {
         this.empty();
         suggestions.forEach(suggestion => {
             const dropdownLink = createNode(`<li><a>${suggestion.show}</a></li>`);
-            this.dropdownContent.append(dropdownLink);
+            this.dropdownContent.appendChild(dropdownLink);
             data(dropdownLink, 'suggestion', suggestion);
 
             dropdownLink.addEventListener('mouseenter', () => {
