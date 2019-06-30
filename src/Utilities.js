@@ -5,9 +5,16 @@ export const ensure = (context, object, keys) => {
         }
     });
 };
+export const ensureAnyOf = (context, object, keys) => {
+    let currentKey;
+    if (!keys.some(key => (
+        typeof object[currentKey = key] !== 'undefined'
+    ))) throw new Error(`AutoSuggest: Missing required parameter, ${context}.${currentKey}`);
+};
 export const ensureType = (context, object, key, type) => {
     [].concat(object[key]).forEach(value => {
-        if (typeof value !== type) {
+        const valueType = typeof value;
+        if (valueType !== type && valueType !== 'undefined') {
             throw new TypeError(`AutoSuggest: Invalid Type for ${context}.${key}, expected ${type}`);
         }
     });

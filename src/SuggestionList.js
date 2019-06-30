@@ -1,4 +1,4 @@
-import { ensure, ensureType } from './Utilities';
+import { ensure, ensureType, ensureAnyOf } from './Utilities';
 
 function validateSuggestions (suggestions) {
     return [].concat(suggestions).map(suggestion => {
@@ -13,27 +13,16 @@ function validateSuggestions (suggestions) {
         } else if (type === 'object') {
             try {
                 ensure('Suggestion', suggestion, 'value');
-                ensureType('Suggestion', suggestion, 'value', 'string');
-            } catch (e1) {
-                if (e1 instanceof TypeError)  throw e1;
-
-                if (!(suggestion.on && suggestion.show && (suggestion.insertText || suggestion.insertHtml))) {
-                    try {
-                        ensure('Suggestion', suggestion, ['on', 'show', 'insertText']);
-                    } catch (e2) {
-                        if (suggestion.on || suggestion.show || suggestion.insertText) {
-                            throw e2;
-                        } else {
-                            throw e1;
-                        }
-                    }
-                }
-
-                ensureType('Suggestion', suggestion, 'on', 'string');
-                ensureType('Suggestion', suggestion, 'show', 'string');
-                ensureType('Suggestion', suggestion, 'insertText', 'string');
-                ensureType('Suggestion', suggestion, 'insertHtml', 'string');
+            } catch (e) {
+                ensure('Suggestion', suggestion, ['on', 'show']);
+                ensureAnyOf('Suggestion', suggestion, ['insertHtml', 'insertText']);
             }
+
+            ensureType('Suggestion', suggestion, 'on', 'string');
+            ensureType('Suggestion', suggestion, 'show', 'string');
+            ensureType('Suggestion', suggestion, 'value', 'string');
+            ensureType('Suggestion', suggestion, 'insertText', 'string');
+            ensureType('Suggestion', suggestion, 'insertHtml', 'string');
 
             suggestion.show = suggestion.show || suggestion.value;
             suggestion.insertText = suggestion.insertText || suggestion.value;
@@ -41,12 +30,14 @@ function validateSuggestions (suggestions) {
 
             suggestion.focusText = suggestion.focusText || [0, 0];
             if (suggestion.focusText.constructor !== Array) {
+                ensureType('Suggestion', suggestion, 'focusText', 'number');
                 suggestion.focusText = [suggestion.focusText, suggestion.focusText];
             }
 
             if (suggestion.insertHtml) {
                 suggestion.focusHtml = suggestion.focusHtml || [0, 0];
                 if (suggestion.focusHtml.constructor !== Array) {
+                    ensureType('Suggestion', suggestion, 'focusHtml', 'number');
                     suggestion.focusHtml = [suggestion.focusHtml, suggestion.focusHtml];
                 }
             }
@@ -66,14 +57,8 @@ function SuggestionList(options) {
         options = { values: options };
     }
 
-    try {
-        ensure('SuggestionList', options, 'trigger');
-        ensureType('Suggestion', options, 'trigger', 'string');
-    } catch (e) {
-        if (e instanceof TypeError) throw e;
-    }
-
     ensure('SuggestionList', options, 'values');
+    ensureType('Suggestion', options, 'trigger', 'string');
     options.caseSensitive = Boolean(options.caseSensitive);
 
     if (typeof options.values === 'function') {
