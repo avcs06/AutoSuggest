@@ -332,7 +332,8 @@ function SuggestionList(options) {
         options.values = validateSuggestions(options.values);
         this.getSuggestions = function (keyword, callback) {
             var flags = !options.caseSensitive ? 'i' : '';
-            var commonRegex = '(^|' + escapeRegExp(_this.trigger) + ')' + escapeRegExp(keyword);
+            var triggerRegex = _this.trigger ? '(?:' + escapeRegExp(_this.trigger) + ')?' : '';
+            var commonRegex = '^' + triggerRegex + escapeRegExp(keyword);
 
             var matcher = new RegExp(commonRegex, flags);
             var exactMatcher = new RegExp(commonRegex + '$', flags);
