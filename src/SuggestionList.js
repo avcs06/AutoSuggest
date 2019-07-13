@@ -69,7 +69,8 @@ function SuggestionList(options) {
         options.values = validateSuggestions(options.values);
         this.getSuggestions = (keyword, callback) => {
             const flags = !options.caseSensitive ? 'i' : '';
-            const commonRegex = `(^|${escapeRegExp(this.trigger)})` + escapeRegExp(keyword);
+            const triggerRegex = this.trigger ? `(?:${escapeRegExp(this.trigger)})?` : '';
+            const commonRegex = '^' + triggerRegex + escapeRegExp(keyword);
 
             const matcher = new RegExp(commonRegex, flags);
             const exactMatcher = new RegExp(commonRegex + '$', flags);

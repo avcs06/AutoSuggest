@@ -119,7 +119,8 @@
                     trigger: '//',
                     caseSensitive: true,
                     values: ['hello', 'world', 'simillar1', 'simillar12', 'with:^sp[e]c<i>(a)l ch{a}rs?$']
-                }, function(keyword, callback) {
+                }, ['hello', 'world', 'simillar1', 'simillar12', 'with:^sp[e]c<i>(a)l ch{a}rs?$'], 
+                function(keyword, callback) {
                     keyword = keyword.toLowerCase();
 
                     var results = [];
