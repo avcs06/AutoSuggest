@@ -1,5 +1,3 @@
-export const IS_FIREFOX = window.mozInnerScreenX != null;
-
 export const CLONE_PROPERTIES = [
     'direction',  // RTL support
     'boxSizing',
@@ -38,5 +36,9 @@ export const CLONE_PROPERTIES = [
     'wordSpacing',
 
     'tabSize',
-    'MozTabSize'
+    'MozTabSize',
+
+    'whiteSpace',
+    'wordWrap',
+    'wordBreak'
 ];

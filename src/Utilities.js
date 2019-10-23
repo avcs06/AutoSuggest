@@ -54,25 +54,26 @@ export const getSelectedTextNodes = () => {
     const selection = window.getSelection();
     const range = selection.getRangeAt(0);
 
-    let { startContainer, startOffset } = range;
-    const direction = selection.anchorNode === startContainer &&
-        selection.anchorOffset === startOffset;
+    let { startContainer, startOffset, endContainer, endOffset } = range;
+    const direction = (
+        selection.anchorNode === startContainer &&
+        selection.anchorOffset === startOffset
+    );
 
     if (startContainer.nodeType !== startContainer.TEXT_NODE) {
-        startContainer = startContainer.childNodes[startOffset];
-        while (startContainer && startContainer.nodeType !== startContainer.TEXT_NODE) {
-            startContainer = startContainer.firstChild;
+        startContainer = startContainer.childNodes[startOffset - 1];
+        if (startContainer) {
+            startContainer = getLastChildNode(startContainer);
+            startOffset = startContainer.nodeValue ? startContainer.nodeValue.length : 0;
         }
-        startOffset = 0;
     }
 
-    let { endContainer, endOffset } = range;
     if (endContainer.nodeType !== endContainer.TEXT_NODE) {
         endContainer = endContainer.childNodes[endOffset];
-        while (endContainer && endContainer.nodeType !== endContainer.TEXT_NODE) {
-            endContainer = endContainer.lastChild;
+        if (endContainer) {
+            endContainer = getFirstChildNode(endContainer);
+            endOffset = 0;
         }
-        endOffset = endContainer ? endContainer.nodeValue.length : endContainer;
     }
 
     return { startContainer, startOffset, endContainer, endOffset, direction };
@@ -102,4 +103,16 @@ export const createNode = html => {
     var div = document.createElement('div');
     div.innerHTML = html.trim();
     return div.firstChild; 
+};
+
+export const getFirstChildNode = node => {
+    let nextNode = node;
+    while (nextNode.firstChild) nextNode = nextNode.firstChild;
+    return nextNode;
+};
+
+export const getLastChildNode = node => {
+    let nextNode = node;
+    while (nextNode.lastChild) nextNode = nextNode.lastChild;
+    return nextNode;
 };

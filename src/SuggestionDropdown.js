@@ -85,6 +85,7 @@ class SuggestionDropdown {
         this.empty();
         this.dropdownContent.innerHTML = '<div class="autosuggest-loader">Loading...</div>';
         this.show(position);
+        this.isActive = false;
     }
 
     getActive() {

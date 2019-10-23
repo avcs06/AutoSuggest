@@ -5,10 +5,10 @@ import {
     getScrollLeftForInput,
     makeAsyncQueueRunner,
     getSelectedTextNodes,
-    getComputedStyle
+    getComputedStyle,
+    getFirstChildNode
 } from './Utilities';
 import {
-    IS_FIREFOX,
     CLONE_PROPERTIES
 } from './Constants';
 
@@ -55,9 +55,8 @@ function getCaretPosition(element, trigger) {
         clone.style.left = `${elementPosition.left}px`;
         document.body.appendChild(clone);
 
-        if (IS_FIREFOX) {
-            if (element.scrollHeight > parseInt(computed.height))
-                clone.style.overflowY = 'scroll';
+        if (element.scrollHeight > parseInt(computed.height)) {
+            clone.style.overflowY = 'scroll';
         } else {
             clone.style.overflow = 'hidden';
         }
@@ -83,8 +82,6 @@ function getCaretPosition(element, trigger) {
             clone.appendChild(document.createTextNode(textAfterTrigger));
 
             clone.style.maxWidth = '100%';
-            clone.style.whiteSpace = 'pre-wrap';
-            clone.style.wordWrap = 'break-word';
             clone.scrollTop = element.scrollTop;
             clone.scrollLeft = element.scrollLeft;
             charHeight = getCharHeight(clone, positioner);
@@ -150,10 +147,20 @@ function getCaretPosition(element, trigger) {
     }
 }
 
-const getNextNode = node => {
-    let nextNode = node.nextSibling || node.parentNode.nextSibling;
-    while (nextNode.firstChild) nextNode = nextNode.firstChild;
-    return nextNode;
+const getNextNode = (node, root) => {
+    let nextNode;
+    if (node.nextSibling)
+        nextNode = node.nextSibling;
+    else {
+        nextNode = node.parentNode;
+        while (nextNode && nextNode !== root && !nextNode.nextSibling)
+            nextNode = nextNode.parentNode;
+        if (nextNode && nextNode !== root)
+            nextNode = nextNode.nextSibling
+        else return;
+    }
+
+    return getFirstChildNode(nextNode);
 };
 
 const removeNodesBetween = (startContainer, endContainer) => {
@@ -205,8 +212,9 @@ const setValue = ({ element, trigger, suggestion, onChange }) => {
         if (startContainer !== endContainer) {
             startContainer.nodeValue = preValue;
             removeNodesBetween(startContainer, endContainer);
-            endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
-            endContainer.parentNode.normalize();
+            if (endContainer.nodeValue) {
+                endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
+            }
         } else {
             const remainingText = startContainer.nodeValue.slice(endOffset);
             if (remainingText) {
@@ -350,8 +358,8 @@ class AutoSuggest {
                     value = this.value.slice(0, startPosition);
                 } else {
                     const { startContainer, startOffset, endContainer, endOffset } = getSelectedTextNodes();
-                    if (!startContainer || !endContainer ||
-                        /\w/.test(endContainer.nodeValue.charAt(endOffset) || ' ')) {
+                    if (!startContainer || !endContainer || !startContainer.nodeValue ||
+                        /\w/.test((endContainer.nodeValue || '').charAt(endOffset) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }

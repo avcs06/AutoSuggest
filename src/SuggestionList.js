@@ -88,7 +88,7 @@ function SuggestionList(options) {
     this.trigger = options.trigger;
     if (this.trigger) {
         const escapedTrigger = escapeRegExp(this.trigger)
-        this.regex = new RegExp(`(?:^|\\W+?)${escapedTrigger}(\\S*)$`);
+        this.regex = new RegExp(`(?:\\W+|^)${escapedTrigger}(\\S*)$`);
     } else {
         this.regex = new RegExp('(?:^|\\s+)(\\S+)$');
     }
