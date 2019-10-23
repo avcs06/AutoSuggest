@@ -192,27 +192,26 @@ var getSelectedTextNodes = function getSelectedTextNodes() {
     var range = selection.getRangeAt(0);
 
     var startContainer = range.startContainer,
-        startOffset = range.startOffset;
+        startOffset = range.startOffset,
+        endContainer = range.endContainer,
+        endOffset = range.endOffset;
 
     var direction = selection.anchorNode === startContainer && selection.anchorOffset === startOffset;
 
     if (startContainer.nodeType !== startContainer.TEXT_NODE) {
-        startContainer = startContainer.childNodes[startOffset];
-        while (startContainer && startContainer.nodeType !== startContainer.TEXT_NODE) {
-            startContainer = startContainer.firstChild;
+        startContainer = startContainer.childNodes[startOffset - 1];
+        if (startContainer) {
+            startContainer = getLastChildNode(startContainer);
+            startOffset = startContainer.nodeValue ? startContainer.nodeValue.length : 0;
         }
-        startOffset = 0;
     }
-
-    var endContainer = range.endContainer,
-        endOffset = range.endOffset;
 
     if (endContainer.nodeType !== endContainer.TEXT_NODE) {
         endContainer = endContainer.childNodes[endOffset];
-        while (endContainer && endContainer.nodeType !== endContainer.TEXT_NODE) {
-            endContainer = endContainer.lastChild;
+        if (endContainer) {
+            endContainer = getFirstChildNode(endContainer);
+            endOffset = 0;
         }
-        endOffset = endContainer ? endContainer.nodeValue.length : endContainer;
     }
 
     return { startContainer: startContainer, startOffset: startOffset, endContainer: endContainer, endOffset: endOffset, direction: direction };
@@ -246,7 +245,19 @@ var createNode = function createNode(html) {
     return div.firstChild;
 };
 
-var IS_FIREFOX = window.mozInnerScreenX != null;
+var getFirstChildNode = function getFirstChildNode(node) {
+    var nextNode = node;
+    while (nextNode.firstChild) {
+        nextNode = nextNode.firstChild;
+    }return nextNode;
+};
+
+var getLastChildNode = function getLastChildNode(node) {
+    var nextNode = node;
+    while (nextNode.lastChild) {
+        nextNode = nextNode.lastChild;
+    }return nextNode;
+};
 
 var CLONE_PROPERTIES = ['direction', // RTL support
 'boxSizing', 'width', // on Chrome and IE, exclude the scrollbar, so the mirror div wraps exactly as the textarea does
@@ -257,7 +268,7 @@ var CLONE_PROPERTIES = ['direction', // RTL support
 // https://developer.mozilla.org/en-US/docs/Web/CSS/font
 'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize', 'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent', 'textDecoration', // might not make a difference, but better be safe
 
-'letterSpacing', 'wordSpacing', 'tabSize', 'MozTabSize'];
+'letterSpacing', 'wordSpacing', 'tabSize', 'MozTabSize', 'whiteSpace', 'wordWrap', 'wordBreak'];
 
 function validateSuggestions(suggestions) {
     return [].concat(suggestions).map(function (suggestion) {
@@ -349,7 +360,7 @@ function SuggestionList(options) {
     this.trigger = options.trigger;
     if (this.trigger) {
         var escapedTrigger = escapeRegExp(this.trigger);
-        this.regex = new RegExp('(?:^|\\W+?)' + escapedTrigger + '(\\S*)$');
+        this.regex = new RegExp('(?:\\W+|^)' + escapedTrigger + '(\\S*)$');
     } else {
         this.regex = new RegExp('(?:^|\\s+)(\\S+)$');
     }
@@ -454,6 +465,7 @@ var SuggestionDropdown = function () {
             this.empty();
             this.dropdownContent.innerHTML = '<div class="autosuggest-loader">Loading...</div>';
             this.show(position);
+            this.isActive = false;
         }
     }, {
         key: 'getActive',
@@ -548,8 +560,8 @@ function getCaretPosition(element, trigger) {
         clone.style.left = elementPosition.left + 'px';
         document.body.appendChild(clone);
 
-        if (IS_FIREFOX) {
-            if (element.scrollHeight > parseInt(computed.height)) clone.style.overflowY = 'scroll';
+        if (element.scrollHeight > parseInt(computed.height)) {
+            clone.style.overflowY = 'scroll';
         } else {
             clone.style.overflow = 'hidden';
         }
@@ -575,8 +587,6 @@ function getCaretPosition(element, trigger) {
             clone.appendChild(document.createTextNode(textAfterTrigger));
 
             clone.style.maxWidth = '100%';
-            clone.style.whiteSpace = 'pre-wrap';
-            clone.style.wordWrap = 'break-word';
             clone.scrollTop = element.scrollTop;
             clone.scrollLeft = element.scrollLeft;
             charHeight = getCharHeight(clone, positioner);
@@ -652,11 +662,16 @@ function getCaretPosition(element, trigger) {
     }
 }
 
-var getNextNode = function getNextNode(node) {
-    var nextNode = node.nextSibling || node.parentNode.nextSibling;
-    while (nextNode.firstChild) {
-        nextNode = nextNode.firstChild;
-    }return nextNode;
+var getNextNode = function getNextNode(node, root) {
+    var nextNode = void 0;
+    if (node.nextSibling) nextNode = node.nextSibling;else {
+        nextNode = node.parentNode;
+        while (nextNode && nextNode !== root && !nextNode.nextSibling) {
+            nextNode = nextNode.parentNode;
+        }if (nextNode && nextNode !== root) nextNode = nextNode.nextSibling;else return;
+    }
+
+    return getFirstChildNode(nextNode);
 };
 
 var removeNodesBetween = function removeNodesBetween(startContainer, endContainer) {
@@ -722,8 +737,9 @@ var setValue = function setValue(_ref) {
         if (startContainer !== endContainer) {
             startContainer.nodeValue = preValue;
             removeNodesBetween(startContainer, endContainer);
-            endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
-            endContainer.parentNode.normalize();
+            if (endContainer.nodeValue) {
+                endContainer.nodeValue = endContainer.nodeValue.slice(endOffset);
+            }
         } else {
             var remainingText = startContainer.nodeValue.slice(endOffset);
             if (remainingText) {
@@ -879,7 +895,7 @@ var AutoSuggest = function () {
                         endContainer = _getSelectedTextNodes3.endContainer,
                         endOffset = _getSelectedTextNodes3.endOffset;
 
-                    if (!startContainer || !endContainer || /\w/.test(endContainer.nodeValue.charAt(endOffset) || ' ')) {
+                    if (!startContainer || !endContainer || !startContainer.nodeValue || /\w/.test((endContainer.nodeValue || '').charAt(endOffset) || ' ')) {
                         self.dropdown.hide();
                         return;
                     }
