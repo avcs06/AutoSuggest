@@ -382,7 +382,7 @@ var SuggestionDropdown = function () {
         this.dropdownContent.className = 'dropdown-menu dropdown-menu-left';
 
         this.dropdown = document.createElement('div');
-        this.dropdown.className = 'dropdown open';
+        this.dropdown.className = 'autosuggest-dropdown dropdown open';
         this.dropdown.style.position = 'absolute';
 
         this.hide();
@@ -403,6 +403,12 @@ var SuggestionDropdown = function () {
                 } else {
                     this.dropdownContent.classList.remove('dropdown-menu-right');
                     this.dropdownContent.classList.add('dropdown-menu-left');
+                }
+
+                if (position.top + this.height > document.body.offsetHeight) {
+                    this.dropdown.classList.add('dropup');
+                } else {
+                    this.dropdown.classList.remove('dropup');
                 }
             }
 
@@ -451,6 +457,7 @@ var SuggestionDropdown = function () {
             }
 
             this.width = this.dropdownContent.offsetWidth;
+            this.height = this.dropdownContent.offsetHeight;
 
             if (!this.isActive) {
                 this.hide();
