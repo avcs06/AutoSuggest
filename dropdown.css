@@ -58,8 +58,8 @@
     outline: 0;
 }
 
-.autosuggest-dropdown .dropdown.open>.dropdown-menu,
-.autosuggest-dropdown .dropup.open>.dropdown-menu {
+.autosuggest-dropdown.dropdown.open>.dropdown-menu,
+.autosuggest-dropdown.dropup.open>.dropdown-menu {
     display: block;
 }
 
@@ -73,7 +73,7 @@
     left: 0;
 }
 
-.autosuggest-dropdown .dropup .dropdown-menu {
+.autosuggest-dropdown.dropup .dropdown-menu {
     top: auto;
     bottom: 100%;
     margin-bottom: 2px;
