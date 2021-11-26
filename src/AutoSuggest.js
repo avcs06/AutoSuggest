@@ -25,7 +25,7 @@ function splitValue(originalValue, cursorPosition, trigger) {
 
 function getCharHeight(...elements) {
     return Math.max(...elements.map(element => (
-        parseFloat(getComputedStyle(element, 'line-height'))
+        return (!isNaN(parseFloat(getComputedStyle(element, 'line-height'))) ? parseFloat(getComputedStyle(element, 'line-height')) : parseFloat(getComputedStyle(element, 'font-size')));
     )));
 }
 
