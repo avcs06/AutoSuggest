@@ -1,0 +1,89 @@
+/* Styles of the demo, the plugin itself does not ship any styles or markup */
+body {
+    background: #f0f0f0;
+    color: #464646;
+    margin: 0;
+    padding: 15px 10px;
+    font-family: 'Source Sans Pro', sans-serif;
+}
+
+.page {
+    background: #fff;
+    box-shadow: 0 1px 1px #bababa;
+    padding: 10px 20px 30px;
+    width: 640px;
+    margin: auto;
+}
+
+.field {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    font: inherit;
+    line-height: 20px;
+}
+
+div.field {
+    height: 120px;
+    overflow: auto;
+}
+
+.hint,
+.log {
+    font-size: 13px;
+    color: #777;
+}
+
+.log {
+    min-height: 60px;
+    padding-left: 20px;
+}
+
+.menu {
+    z-index: 1000;
+    min-width: 160px;
+    margin: 2px 0 0;
+    padding: 5px 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, .15);
+    border-radius: 4px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
+    font-size: 14px;
+}
+
+.menu ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.menu-heading {
+    padding: 3px 10px;
+    font-size: 11px;
+    color: #999;
+    text-transform: uppercase;
+}
+
+.menu-item {
+    padding: 3px 20px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.menu-item:hover {
+    background: #337ab7;
+    color: #fff;
+}
+
+.menu-item small {
+    margin-left: 8px;
+    opacity: .7;
+}
+
+.menu-loader {
+    padding: 3px 20px;
+    color: #999;
+}

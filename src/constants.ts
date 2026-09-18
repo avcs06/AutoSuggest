@@ -1,4 +1,7 @@
-export const CLONE_PROPERTIES = [
+export const DEFAULT_MAX_SUGGESTIONS = 10;
+export const DEFAULT_CASE_SENSITIVE = false;
+
+export const CLONE_PROPERTIES: ReadonlyArray<string> = [
     'direction',  // RTL support
     'boxSizing',
     'width',  // on Chrome and IE, exclude the scrollbar, so the mirror div wraps exactly as the textarea does
