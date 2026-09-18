@@ -1,0 +1,28 @@
+/* Demo-only styling. The plugin itself ships no CSS and renders no markup. */
+html, body { margin: 0; height: 100%; }
+body {
+    background: #f0f0f0;
+    color: #464646;
+    padding: 15px 10px;
+    font-family: 'Source Sans Pro', system-ui, sans-serif;
+    box-sizing: border-box;
+}
+#root { background: #fff; box-shadow: 0 1px 1px #bababa; padding: 10px 20px 30px; width: 640px; margin: auto; }
+h1 { font-weight: 300; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+h3 { margin: 24px 0 8px; font-weight: 400; }
+.field { display: block; width: 100%; box-sizing: border-box; font: inherit; line-height: 20px; padding: 6px 12px; border: 1px solid #ced4da; border-radius: 0; }
+textarea.field { resize: vertical; }
+.field[contenteditable] { height: 120px; overflow: auto; }
+.hint { font-size: 13px; color: #888; margin: 4px 0 0; }
+.log { background: #272822; color: #f8f8f2; font: 12px/1.5 monospace; padding: 10px; height: 140px; overflow: auto; margin-top: 24px; }
+.log p { margin: 0; }
+
+/* Dropdown menu rendered through renderMenu / renderMenuItem */
+.menu { list-style: none; margin: 2px 0 0; padding: 4px 0; min-width: 160px; background: #fff; border: 1px solid rgba(0,0,0,.15); border-radius: 4px; box-shadow: 0 6px 12px rgba(0,0,0,.175); z-index: 1000; }
+.menu-item { padding: 3px 20px; cursor: pointer; white-space: nowrap; }
+.menu-item:hover { background: #f5f5f5; }
+.menu-item small { color: #888; margin-left: 8px; }
+.menu-heading { padding: 2px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #999; }
+.menu-loading { padding: 3px 20px; color: #888; font-style: italic; }
+.menu-tag { background: #eef; padding: 0 4px; border-radius: 2px; }
+.mention { color: #1a73e8; background: #e8f0fe; border-radius: 3px; padding: 0 3px; text-decoration: none; }

@@ -1,10 +1,10 @@
 export const CLONE_PROPERTIES = [
-    'direction',  // RTL support
+    'direction', // RTL support
     'boxSizing',
-    'width',  // on Chrome and IE, exclude the scrollbar, so the mirror div wraps exactly as the textarea does
+    'width', // on Chrome and IE, exclude the scrollbar, so the mirror div wraps exactly as the textarea does
     'height',
     'overflowX',
-    'overflowY',  // copy the scrollbar for IE
+    'overflowY', // copy the scrollbar for IE
 
     'borderTopWidth',
     'borderRightWidth',
@@ -30,7 +30,7 @@ export const CLONE_PROPERTIES = [
     'textAlign',
     'textTransform',
     'textIndent',
-    'textDecoration',  // might not make a difference, but better be safe
+    'textDecoration', // might not make a difference, but better be safe
 
     'letterSpacing',
     'wordSpacing',
@@ -41,4 +41,10 @@ export const CLONE_PROPERTIES = [
     'whiteSpace',
     'wordWrap',
     'wordBreak'
-];
+] as const;
+
+export const DEFAULT_MAX_SUGGESTIONS = 10;
+export const DEFAULT_CASE_SENSITIVE = false;
+
+/** Invisible character used to measure the caret position. */
+export const POSITIONER_CHARACTER = '\ufeff';
